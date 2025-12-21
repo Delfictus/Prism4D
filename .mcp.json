@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "prism-marketplace": {
+      "type": "stdio",
+      "command": "python3",
+      "args": ["/mnt/c/Users/Predator/Desktop/PRISM4D/.claude/mcp-servers/prism-marketplace/server.py"]
+    },
+    "context7": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@upstash/context7-mcp"],
+      "env": {
+        "CONTEXT7_API_KEY": "ctx7sk-0ff3fa3d-14c4-446e-b1f4-2b5e47d92807"
+      }
+    }
+  }
+}

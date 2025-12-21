@@ -1,0 +1,63 @@
+# PRISM-LBS Precision-Focused Configuration for CryptoBench
+# Goal: Improve Precision and DCC by constraining pocket size
+# Problem: Current pockets average 577 residues but only ~11 are true positives
+# Date: December 4, 2025
+
+[detection]
+# Core algorithm parameters - keep stable values
+power_iterations = 12              # Eigenvalue convergence stability
+kempe_iterations = 8               # Graph coloring refinement
+
+[pocket]
+# Pocket detection thresholds - MUCH TIGHTER for precision
+min_pocket_volume = 200.0          # Slightly higher to reduce noise
+max_pocket_volume = 2500.0         # MUCH lower to prevent mega-pockets (was 4800)
+druggability_threshold = 0.35      # Higher threshold for quality (was 0.30)
+max_pockets = 5                    # Only top 5 (was 8)
+
+# Pocket merging - DISABLED to prevent mega-pockets
+enable_merging = false             # KEY: Don't merge pockets together
+
+# Pocket expansion - DISABLED to keep pockets tight
+enable_expansion = false           # KEY: Don't expand pocket boundaries
+
+[clustering]
+# Voronoi tessellation parameters - tighter
+cluster_distance = 3.5             # Tighter clustering (was 4.0)
+min_cluster_size = 5               # Require more points per cluster (was 3)
+grid_spacing = 1.5                 # Finer grid (was 1.8)
+
+[voronoi]
+# Alpha sphere detection - tighter parameters
+min_alpha_radius = 2.8             # LARGER to detect only substantial cavities (was 2.3)
+max_alpha_radius = 8.0             # Smaller max to avoid surface detection (was 10.0)
+dbscan_eps = 4.0                   # Tighter clustering distance (was 5.0)
+min_burial_depth = 2.5             # Higher burial requirement (was 2.0)
+
+# ============================================================================
+# TUNING RATIONALE - PRECISION FOCUS
+# ============================================================================
+#
+# Problem Analysis from eval_test_metrics.json:
+# - Average predicted pocket: 577 residues (TP=11, FP=566)
+# - Worst case (4amv): 1713 residues predicted, only 15 true positives
+# - Mean DCC: 20.24 Angstroms (target: <4A)
+# - Recall is high (75%) but precision is very low (3.2%)
+#
+# Root Cause: Pocket merging creates mega-pockets covering entire protein
+#
+# Key Changes:
+# 1. enable_merging = false (CRITICAL: prevents mega-pockets)
+# 2. enable_expansion = false (keeps pockets focused)
+# 3. max_pocket_volume: 4800 -> 2500 (hard cap on pocket size)
+# 4. min_alpha_radius: 2.3 -> 2.8 (only detect substantial cavities)
+# 5. cluster_distance: 4.0 -> 3.5 (tighter clustering)
+# 6. min_cluster_size: 3 -> 5 (require denser clusters)
+#
+# Expected Impact:
+# - Precision: +10-20% (fewer false positives)
+# - DCC: Significant improvement (tighter pockets = better centroids)
+# - Recall: May decrease 5-15% (acceptable trade-off)
+# - F1: Should improve overall
+#
+# ============================================================================

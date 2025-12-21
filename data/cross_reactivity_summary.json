@@ -1,0 +1,190 @@
+{
+  "epitope_classes": [
+    "A",
+    "B",
+    "C",
+    "D1",
+    "D2",
+    "E12",
+    "E3",
+    "F1",
+    "F2",
+    "F3"
+  ],
+  "variant_list": [
+    "AY.100",
+    "AY.106",
+    "AY.33",
+    "AY.33.2",
+    "AY.4.2",
+    "AY.41",
+    "AY.51",
+    "AY.68",
+    "AY.98.1",
+    "AZ.2",
+    "B.1.1.529",
+    "B.1.1.7",
+    "B",
+    "BA.1.1.15",
+    "BA.1.1",
+    "BA.1.14",
+    "BA.1",
+    "BA.2.10",
+    "BA.2.12.1",
+    "BA.2.13"
+  ],
+  "matrix_size": {
+    "A": [
+      136,
+      136
+    ],
+    "B": [
+      136,
+      136
+    ],
+    "C": [
+      136,
+      136
+    ],
+    "D1": [
+      136,
+      136
+    ],
+    "D2": [
+      136,
+      136
+    ],
+    "E12": [
+      136,
+      136
+    ],
+    "E3": [
+      136,
+      136
+    ],
+    "F1": [
+      136,
+      136
+    ],
+    "F2": [
+      136,
+      136
+    ],
+    "F3": [
+      136,
+      136
+    ]
+  },
+  "sample_values": {
+    "A": {
+      "diagonal": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ],
+      "max_cross_immunity": 60.06347587188129,
+      "min_cross_immunity": 1.0
+    },
+    "B": {
+      "diagonal": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ],
+      "max_cross_immunity": 12379.59686851115,
+      "min_cross_immunity": 1.0
+    },
+    "C": {
+      "diagonal": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ],
+      "max_cross_immunity": 729.1252932967666,
+      "min_cross_immunity": 1.0
+    },
+    "D1": {
+      "diagonal": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ],
+      "max_cross_immunity": 440.4020690113165,
+      "min_cross_immunity": 1.0
+    },
+    "D2": {
+      "diagonal": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ],
+      "max_cross_immunity": 1952.826038764822,
+      "min_cross_immunity": 1.0
+    },
+    "E12": {
+      "diagonal": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ],
+      "max_cross_immunity": 1556.3604760747896,
+      "min_cross_immunity": 1.0
+    },
+    "E3": {
+      "diagonal": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ],
+      "max_cross_immunity": 1.5634143648192296,
+      "min_cross_immunity": 1.0
+    },
+    "F1": {
+      "diagonal": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ],
+      "max_cross_immunity": 160.6810877231256,
+      "min_cross_immunity": 1.0
+    },
+    "F2": {
+      "diagonal": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ],
+      "max_cross_immunity": 508.15722902135883,
+      "min_cross_immunity": 1.0
+    },
+    "F3": {
+      "diagonal": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ],
+      "max_cross_immunity": 54.16151890213705,
+      "min_cross_immunity": 1.0
+    }
+  }
+}

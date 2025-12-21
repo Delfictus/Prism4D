@@ -1,0 +1,31 @@
+{
+  "structure": "HUMAN ESTROGENIC 17BETA-HYDROXYSTEROID DEHYDROGENASE",
+  "num_atoms": 2226,
+  "pockets": [
+    {
+      "rank": 1,
+      "centroid": [
+        15.308824742268039,
+        -6.4961443298969055,
+        -15.636762886597946
+      ],
+      "volume": 18127.754020332,
+      "druggability": 0.6761725425720215,
+      "num_residues": 12,
+      "residue_indices": [
+        36,
+        37,
+        43,
+        192,
+        194,
+        195,
+        196,
+        197,
+        198,
+        199,
+        200,
+        201
+      ]
+    }
+  ]
+}

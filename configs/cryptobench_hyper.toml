@@ -1,0 +1,59 @@
+# PRISM-LBS Hyper-Tuned Configuration for CryptoBench
+# Goal: Improve Precision/F1 and DCC while maintaining recall
+# Baseline: optimal_cryptobench.toml (82.6% Top-1 ≥50%, 89.9% ≥30%)
+# Date: December 3, 2025
+
+[detection]
+# Core algorithm parameters - keep stable values
+power_iterations = 12              # Eigenvalue convergence stability
+kempe_iterations = 8               # Graph coloring refinement
+
+[pocket]
+# Pocket detection thresholds - tuned for tighter precision
+min_pocket_volume = 160.0          # Å³ - slightly higher to reduce false positives
+max_pocket_volume = 4800.0         # Å³ - slightly lower to constrain mega-pockets
+druggability_threshold = 0.30      # Higher to improve precision (was 0.28)
+max_pockets = 8                    # Fewer candidates for higher confidence (was 10)
+
+# Pocket merging - prevents over-segmentation
+enable_merging = true
+merge_distance = 12.0              # Å - merge nearby pockets
+
+# Pocket expansion - captures full binding region
+enable_expansion = true
+expansion_distance = 3.5           # Å - tighter than baseline (was 4.0)
+
+[clustering]
+# Voronoi tessellation parameters
+cluster_distance = 4.0             # Å - DBSCAN epsilon
+min_cluster_size = 3               # Minimum points per cluster
+grid_spacing = 1.8                 # Å - finer grid for tighter pocket geometry (was 2.0)
+
+[voronoi]
+# Alpha sphere detection
+min_alpha_radius = 2.3             # Å - slightly smaller to detect tight cavities (was 2.5)
+max_alpha_radius = 10.0            # Å - maximum probe sphere
+dbscan_eps = 5.0                   # Å - clustering distance
+min_burial_depth = 2.0             # Å - required burial depth
+
+# ============================================================================
+# TUNING RATIONALE
+# ============================================================================
+#
+# Changes from optimal_cryptobench.toml:
+# 1. min_pocket_volume: 150 → 160 Å³ (reduce small false positive pockets)
+# 2. max_pocket_volume: 5000 → 4800 Å³ (constrain mega-pockets)
+# 3. druggability_threshold: 0.28 → 0.30 (improve precision)
+# 4. max_pockets: 10 → 8 (higher confidence predictions)
+# 5. expansion_distance: 4.0 → 3.5 Å (tighter boundaries)
+# 6. grid_spacing: 2.0 → 1.8 Å (finer geometry, trade: ~20% more compute)
+# 7. min_alpha_radius: 2.5 → 2.3 Å (detect tighter cavities)
+#
+# Expected impact:
+# - Precision: +5-10% (fewer false positives)
+# - F1: +2-5% (better balance)
+# - DCC: Improved centroid localization
+# - Recall: May decrease 2-3% (acceptable trade-off)
+# - Jaccard: Expected improvement from tighter predictions
+#
+# ============================================================================

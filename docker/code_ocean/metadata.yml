@@ -1,0 +1,122 @@
+# Code Ocean Capsule Metadata
+# PRISM-LBS: GPU-Accelerated Ligand Binding Site Prediction
+#
+# This capsule provides full reproducibility for the PRISM-LBS publication
+# submission to Nature Communications / Bioinformatics.
+
+name: PRISM-LBS
+description: |
+  GPU-accelerated ligand binding site prediction using a hybrid quantum-neuromorphic
+  approach. Achieves state-of-the-art performance on CryptoBench (cryptic sites),
+  LIGYSIS, and ASBench (allosteric sites) benchmarks.
+
+version: 1.0.0
+
+authors:
+  - name: PRISM Research Team
+    email: IS@Delfictus.com
+    affiliation: Delfictus I/O Inc.
+
+license: MIT
+
+keywords:
+  - ligand binding site
+  - drug discovery
+  - GPU acceleration
+  - CUDA
+  - protein structure
+  - computational biology
+  - machine learning
+  - cryptic binding sites
+  - allosteric sites
+
+# Computational requirements
+compute:
+  gpu:
+    required: true
+    type: NVIDIA
+    memory: 8GB
+    cuda_version: "12.6"
+  cpu:
+    cores: 4
+    memory: 16GB
+  storage: 50GB
+
+# Environment configuration
+environment:
+  base_image: nvidia/cuda:12.6.0-devel-ubuntu22.04
+  packages:
+    apt:
+      - build-essential
+      - curl
+      - git
+      - cmake
+      - python3
+      - python3-pip
+    pip:
+      - numpy
+      - pandas
+      - scipy
+      - scikit-learn
+      - matplotlib
+      - biopython
+      - tqdm
+      - requests
+
+# Input data specification
+data:
+  inputs:
+    - name: PDB structures
+      description: Protein structures in PDB format
+      path: /data/structures
+      optional: false
+    - name: Benchmark datasets
+      description: Pre-downloaded benchmark datasets (CryptoBench, LIGYSIS, ASBench)
+      path: /data/benchmarks
+      optional: true
+
+# Output specification
+results:
+  - name: Predictions
+    description: JSON files with pocket predictions and scores
+    path: /results/predictions
+  - name: Validation metrics
+    description: Publication-ready metrics (DCC, DVO, AUC, etc.)
+    path: /results/metrics
+  - name: Comparison reports
+    description: Statistical comparisons with baseline methods
+    path: /results/comparisons
+
+# Reproducibility guarantees
+reproducibility:
+  deterministic: true
+  random_seed: 42
+  verified_platforms:
+    - name: Code Ocean
+      version: "2023.10"
+    - name: Docker
+      version: "24.0"
+    - name: Singularity
+      version: "3.11"
+
+# Citation information
+citation: |
+  If you use PRISM-LBS in your research, please cite:
+
+  @article{prism_lbs_2024,
+    title={PRISM-LBS: GPU-Accelerated Ligand Binding Site Prediction
+           via Quantum-Neuromorphic Architecture},
+    author={PRISM Research Team},
+    journal={Nature Communications},
+    year={2024},
+    doi={10.1038/xxxxx}
+  }
+
+# Related publications
+references:
+  - title: "fpocket: An open source platform for ligand pocket detection"
+    doi: "10.1186/1471-2105-10-168"
+  - title: "SiteMap: A tool for binding site identification and analysis"
+    doi: "10.1021/jm0483411"
+  - title: "DoGSiteScorer: active site prediction and druggability assessment"
+    doi: "10.1093/bioinformatics/bts310"

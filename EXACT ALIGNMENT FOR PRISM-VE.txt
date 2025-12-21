@@ -1,0 +1,176 @@
+ 9. EXACT ALIGNMENT FOR PRISM-VE
+
+  Required Changes to Current Implementation:
+
+  A. Change Prediction Granularity
+
+  Current: Per-structure prediction (12,262 predictions)
+  Required: Per-day prediction for each lineage in each country
+
+  Example:
+  - Lineage: BA.5 in Germany
+  - Date range: March 1, 2022 - July 1, 2024 (853 days)
+  - Filter: Only days where BA.5 ≥ 3% frequency AND |Δπ| ≥ 5%
+  - Result: ~200-300 valid prediction days for BA.5 in Germany
+
+  B. Compute γy(t) Not Just Once Per Structure
+
+  VASIL computes:
+  for country in 12_countries:
+      for lineage in major_lineages[country]:  # Those with peak ≥ 3%
+          for day in evaluation_window:
+              if lineage_freq[day] >= 0.03:  # 3% threshold
+                  # Compute immunity landscape at this day
+                  E_Immune_y = sum over all_prior_variants_x:
+                      integral_0_to_t(π_x(s) * I(s) * P_Neut(t-s, x, y) ds)
+
+                  E_S_y = Population - E_Immune_y
+
+                  # Compute competition baseline
+                  weighted_avg_S = sum(π_x(t) * E_S_x(t) for x in current_variants)
+
+                  # Relative fitness
+                  γ_y(t) = E_S_y(t) / weighted_avg_S - 1
+
+                  # Predict direction
+                  if γ_y(t) > 0:
+                      predict RISE
+                  elif γ_y(t) < 0:
+                      predict FALL
+
+                  # Compare to actual
+                  actual_direction = sign(π_y(t+1) - π_y(t))
+
+                  if abs(π_y(t+1) - π_y(t)) / π_y(t) >= 0.05:
+                      # Include in accuracy
+                      correct += (predicted == actual)
+                      total += 1
+
+  C. Per-Country-Lineage Accuracy, Then Mean
+
+  VASIL's aggregation:
+  # Step 1: Compute accuracy for each (country, lineage) pair
+  accuracies = []
+  for country in countries:
+      for lineage in major_lineages[country]:
+          acc = correct_days / total_valid_days
+          accuracies.append(acc)
+
+  # Step 2: MEAN across all pairs (not weighted by sample size!)
+  final_accuracy = mean(accuracies)  # = 0.92 for VASIL
+
+  EXACT PRISM-VE MODIFICATIONS NEEDED
+
+  FILE: crates/prism-ve-bench/src/vasil_exact_metric.rs
+
+  This file already exists! Let me check if it implements the correct methodology.
+
+  From main.rs:57:
+  use vasil_exact_metric::{VasilMetricComputer, DayDirection};
+
+  This suggests the methodology is already implemented. The benchmark hit a timeout, so we didn't see the final VASIL exact metric results.
+
+  What the Exact Metric Computer Must Do:
+
+  pub struct VasilMetricComputer {
+      // Per-country immunity landscapes
+      immunity_landscapes: HashMap<String, ImmunityLandscape>,
+
+      // Per-day frequency data
+      daily_frequencies: HashMap<(String, String, NaiveDate), f32>,  // (country, lineage, date) -> freq
+
+      // PK parameter grid (75 combinations)
+      pk_grid: Vec<(f32, f32)>,  // (tmax, thalf) pairs
+  }
+
+  impl VasilMetricComputer {
+      pub fn compute_accuracy(&self) -> f32 {
+          let mut per_lineage_country_accuracies = Vec::new();
+
+          for country in &COUNTRIES {
+              for lineage in self.get_major_lineages(country) {  // Peak ≥ 3%
+                  let mut correct_days = 0;
+                  let mut total_days = 0;
+
+                  for date in evaluation_window {
+                      let freq_today = self.get_freq(country, lineage, date);
+                      let freq_tomorrow = self.get_freq(country, lineage, date + 1day);
+
+                      // Filter 1: Lineage must be ≥ 3%
+                      if freq_today < 0.03 { continue; }
+
+                      // Filter 2: Negligible change
+                      let rel_change = abs(freq_tomorrow - freq_today) / freq_today;
+                      if rel_change < 0.05 { continue; }
+
+                      // Compute γy(date) with uncertainty
+                      let gamma_envelope = self.compute_gamma_with_uncertainty(
+                          country, lineage, date
+                      );  // Returns (min, max) from 75 PK combos
+
+                      // Filter 3: Undecided prediction
+                      if gamma_envelope.0 < 0.0 && gamma_envelope.1 > 0.0 {
+                          continue;  // Envelope crosses zero
+                      }
+
+                      // Determine predicted direction
+                      let predicted = if gamma_envelope.0 > 0.0 { RISE } else { FALL };
+
+                      // Determine actual direction
+                      let actual = if freq_tomorrow > freq_today { RISE } else { FALL };
+
+                      // Accumulate
+                      if predicted == actual { correct_days += 1; }
+                      total_days += 1;
+                  }
+
+                  if total_days > 0 {
+                      per_lineage_country_accuracies.push(correct_days / total_days);
+                  }
+              }
+          }
+
+          // MEAN (not weighted average!)
+          per_lineage_country_accuracies.iter().sum() / per_lineage_country_accuracies.len()
+      }
+  }
+
+  ---
+  10. PRECISE PARAMETER VALUES
+
+  DMS Data:
+
+  - Source: Bloom Lab (GitHub: jbloomlab/SARS2_RBD_Ab_escape_maps)
+  - Antibodies: 836 total
+  - Epitope Classes: 10 (A, B, C, D1, D2, E12, E3, F1, F2, F3)
+  - Sites: RBD positions 331-531 (201 sites)
+  - Escape Fractions: Bounded at ≤ 0.99
+
+  Antibody Pharmacokinetics:
+
+  Parameter Grid:
+  tmax_values = np.linspace(14, 28, 5)  # [14, 17, 21, 25, 28] days
+  thalf_values = np.linspace(25, 69, 15)  # 15 values from 25-69 days
+
+  pk_combinations = [(t_max, t_half)
+                     for t_max in tmax_values
+                     for t_half in thalf_values]  # 75 total
+
+  IC50 Calibration:
+
+  Calibration Data: Wuhan-Hu-1 vaccine efficacy against Delta
+  Date Range: July 4, 2021 - Dec 31, 2021
+  Method: Levenberg-Marquardt least squares
+
+  Result: IC50(x̄) = average over 75 PK-specific IC50 estimates
+
+  After Calibration: NO FURTHER FITTING (stated explicitly in Methods)
+
+  Cross-Reactivity Matrix:
+
+  Source: DMS-derived fold resistance
+  Formula:
+  FRx,y(ϑ) = IC50(DMS)(a) / (ba(x,y) - 1)^-1
+
+  Where ba(x,y) = Πs∈Ω(x,y) (1 - efs,a)
+

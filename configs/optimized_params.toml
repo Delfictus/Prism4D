@@ -1,0 +1,17 @@
+# PRISM-VE Optimized Parameters (REAL accuracy)
+
+[thresholds]
+negligible = 0.0500
+min_frequency = 0.0300
+min_peak_frequency = 0.0300
+confidence_margin = 0.0000
+
+[ic50]
+values = [0.85, 1.12, 0.93, 1.05, 0.98, 1.21, 0.89, 1.08, 0.95, 1.03]
+
+[metadata]
+baseline_accuracy = 0.5197
+train_accuracy = 0.5197
+test_accuracy = 0.5197
+training_episodes = 100
+training_date = "2025-12-20"

@@ -1,0 +1,33 @@
+{
+  "name": "prism-ve-swarm",
+  "version": "1.0.0",
+  "description": "Multi-agent swarm for PRISM-4D viral evolution optimization with scientific integrity guarantees. 9 specialized agents including Data Flow Validator for GPU pipeline debugging.",
+  "author": {
+    "name": "Ididia",
+    "url": "https://github.com/ididia"
+  },
+  "repository": "https://github.com/ididia/prism-ve-swarm",
+  "license": "MIT",
+  "keywords": [
+    "PRISM-4D",
+    "viral-evolution",
+    "scientific-integrity",
+    "GPU-debugging",
+    "VASIL-benchmark",
+    "multi-agent",
+    "swarm",
+    "bioinformatics",
+    "CUDA",
+    "Rust"
+  ],
+  "commands": [
+    "./commands/swarm-init.md",
+    "./commands/swarm-cycle.md",
+    "./commands/swarm-status.md",
+    "./commands/dfv-check.md",
+    "./commands/integrity-audit.md",
+    "./commands/hypothesis-test.md"
+  ],
+  "agents": "./agents/",
+  "skills": "./skills/"
+}

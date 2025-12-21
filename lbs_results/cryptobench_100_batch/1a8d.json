@@ -1,0 +1,25 @@
+{
+  "structure": "TETANUS TOXIN C FRAGMENT",
+  "num_atoms": 4083,
+  "pockets": [
+    {
+      "rank": 1,
+      "centroid": [
+        65.029,
+        46.52595999999998,
+        16.93044
+      ],
+      "volume": 1555.4844456480016,
+      "druggability": 0.6899072885513307,
+      "num_residues": 6,
+      "residue_indices": [
+        320,
+        321,
+        322,
+        323,
+        324,
+        325
+      ]
+    }
+  ]
+}
