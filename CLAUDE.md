@@ -201,6 +201,10 @@ PDB Structures + Mutations (data/VASIL/ByCountry/*)
 ---
 
 ## BANNED ACTIONS — EVERY PROMPT
+❌ "Minimal episodes" or "quick test" or "baseline test" — ALWAYS full parameters
+❌ Abbreviated runs to "verify wiring" — verify by reading code, not running shortcuts
+❌ Any test with reduced parameters (episodes, learning rate, batch size)
+❌ "Sanity check" runs — either full benchmark or no run
 ❌ Create new files (edit existing ONLY)
 ❌ Create new crates or binaries
 ❌ Create markdown docs (especially *SESSION*, *STATUS*, *HANDOFF*, *SUMMARY*, *COMPLETE*, *REPORT*)
