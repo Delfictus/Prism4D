@@ -8,6 +8,9 @@ Before responding to ANY prompt, silently verify ALL:
 - [ ] Editing existing files ONLY
 - [ ] Response is <50 lines unless code block
 - [ ] No mention of Claude/AI/assistant
+- [ ] Tests use REAL data only
+- [ ] Tests use REAL kernels only
+- [ ] One script per task — REUSE, don't recreate
 
 VIOLATION = STOP and state constraint breach FIRST.
 
@@ -48,6 +51,13 @@ Never reference Claude/AI/assistant in code, commits, or comments.
 ❌ Architecture changes without explicit approval
 ❌ Duplicate existing functionality
 ❌ Add dependencies without explicit approval
+❌ Create new test scripts (edit existing only)
+❌ Create test_*.rs or *_test.rs files
+❌ Create benchmark_*.rs files
+❌ Use synthetic/generated test data
+❌ Mix VASIL path with LBS path
+❌ Mix CPU path with GPU path without explicit comparison
+❌ Run partial pipelines as if they were full tests
 
 ---
 
@@ -62,8 +72,50 @@ Never reference Claude/AI/assistant in code, commits, or comments.
 
 ---
 
+## TESTING PROTOCOL — LOCKED
+
+### ONE SCRIPT RULE
+- If a test script exists, EDIT IT — never create a new one
+- If revising a script, revise IN PLACE — no copies
+- Script names are FROZEN: do not rename or duplicate
+
+### REAL DATA ONLY
+- VASIL tests MUST use: data/VASIL/ByCountry/*
+- LBS tests MUST use: data/cryptobench_2025_GOLDEN_pockets.csv
+- NO synthetic data, NO generated data, NO mock data
+
+### REAL KERNELS ONLY
+- VASIL tests MUST use: mega_fused_vasil_fluxnet.cu
+- LBS tests MUST use: mega_fused_pocket_kernel.cu
+- NO stub kernels, NO fallback CPU paths disguised as GPU
+
+### PATH ISOLATION
+- VASIL pipeline = prism-ve + prism-ve-bench + prism-fluxnet
+- LBS pipeline = prism-lbs + prism-geometry
+- DO NOT cross-mingle crates between pipelines
+- DO NOT mix targets (VE accuracy ≠ LBS pocket detection)
+
+### EXISTING TEST ENTRY POINTS (USE THESE ONLY)
+| Purpose | Location | Command |
+|---------|----------|---------|
+| VASIL benchmark | crates/prism-ve-bench/src/bin/train_fluxnet_ve.rs | `cargo run -p prism-ve-bench --bin train_fluxnet_ve` |
+| IC50 verification | crates/prism-ve-bench/src/bin/verify_ic50_wiring.rs | `cargo run -p prism-ve-bench --bin verify_ic50_wiring` |
+| LBS benchmark | crates/prism-lbs/src/bin/benchmark.rs | `cargo run -p prism-lbs --bin benchmark` |
+| LBS main | crates/prism-lbs/src/bin/main.rs | `cargo run -p prism-lbs` |
+| LBS training | crates/prism-lbs/src/bin/train.rs | `cargo run -p prism-lbs --bin train` |
+
+### BEFORE RUNNING ANY TEST
+State:
+1. Which entry point (from table above)
+2. Which kernel (from canonical list)
+3. Which data path (from data locations)
+4. Expected output format
+
+---
+
 ## CURRENT OBJECTIVE
-VASIL 12-country benchmark → diagnose accuracy gap → achieve >92%
+Restore VASIL accuracy to 77.4% baseline using mega_fused_vasil_fluxnet.cu.
+DO NOT sacrifice speed. Find GPU/CPU numerical divergence. Fix it.
 
 ---
 
