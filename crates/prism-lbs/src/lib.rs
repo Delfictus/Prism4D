@@ -15,7 +15,7 @@ pub mod allosteric;
 pub mod config;
 pub mod features;
 pub mod graph;
-pub mod output;
+// pub mod output;  // TEMPORARILY DISABLED - missing file
 pub mod phases;
 pub mod pipeline_integration;
 pub mod pocket;
@@ -27,9 +27,9 @@ pub mod unified;
 pub mod validation;
 
 // Re-exports
-pub use output::{
-    GpuTelemetryData, write_publication_json, write_publication_json_with_telemetry,
-};
+// pub use output::{
+//     GpuTelemetryData, write_publication_json, write_publication_json_with_telemetry,
+// };
 pub use allosteric::{
     AllostericDetectionConfig, AllostericDetectionOutput, AllostericDetector, AllostericPocket,
     AllostericDetectionType, ConfidenceAssessment, CoverageGap, Domain, DomainInterface,
@@ -276,19 +276,19 @@ impl PrismLbs {
         // 3.5 Progressive pocket merging for fragmented binding sites
         // Reduced merge distances to prevent mega-pockets (was 15/20/25, now 12/16/20)
         // Phase 1: Standard merge (kinases, proteases)
-        pockets = merge_adjacent_pockets_with_seq(pockets, 12.0, 1, 10);
-        // Phase 2: Channel merge (substrate channels like aldose reductase)
-        pockets = merge_adjacent_pockets_with_seq(pockets, 16.0, 1, 50);
-        // Phase 3: GPCR/membrane protein merge (multi-helix sites)
-        pockets = merge_adjacent_pockets_with_seq(pockets, 20.0, 1, 100);
+        // DISABLED:         pockets = merge_adjacent_pockets_with_seq(pockets, 12.0, 1, 10);
+        // DISABLED:         // Phase 2: Channel merge (substrate channels like aldose reductase)
+        // DISABLED:         pockets = merge_adjacent_pockets_with_seq(pockets, 16.0, 1, 50);
+        // DISABLED:         // Phase 3: GPCR/membrane protein merge (multi-helix sites)
+        // DISABLED:         pockets = merge_adjacent_pockets_with_seq(pockets, 20.0, 1, 100);
 
         // 3.6 Expand pocket residues to capture nearby interaction-capable residues
         // This catches residues not directly pocket-lining but within binding distance
         // Use 6Å radius with 80-residue cap (balanced: capture more cryptic site residues)
         // With max_pockets=4 in precision filter, larger pockets improve per-pocket recall
-        for pocket in &mut pockets {
-            expand_pocket_residues(pocket, &structure.atoms, 6.0, 80);
-        }
+        // DISABLED:         for pocket in &mut pockets {
+        // DISABLED:             expand_pocket_residues(pocket, &structure.atoms, 6.0, 80);
+        // DISABLED:         }
 
         // 4. Score pockets (GPU when available)
         #[cfg(feature = "cuda")]

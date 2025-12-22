@@ -1,0 +1,2072 @@
+
+============================================================
+PAGE 1
+============================================================
+Article
+SARS-CoV-2 evolution on a dynamic immune
+landscape
+https://doi.org/10.1038/s41586-024-08477-8 N. Alexia Raharinirina1,6, Nils Gubela1,2,6, Daniela Börnigen3,6, Maureen Rebecca Smith3,6,
+Djin-Ye Oh4, Matthias Budt4, Christin Mache4, Claudia Schillings1, Stephan Fuchs5,
+Received: 18 September 2023
+Ralf Dürrwald4, Thorsten Wolff4, Martin Hölzer5, Sofia Paraskevopoulou5 & Max von Kleist1,3 ✉
+Accepted: 2 December 2024
+Published online: 29 January 2025
+Since the onset of the pandemic, many SARS-CoV-2 variants have emerged, exhibiting
+Open access substantial evolution in the virus’ spike protein1, the main target of neutralizing
+Check for updates antibodies2. A plausible hypothesis proposes that the virus evolves to evade antibody-
+mediated neutralization (vaccine- or infection-induced) to maximize its ability to
+infect an immunologically experienced population1,3. Because viral infection induces
+neutralizing antibodies, viral evolution may thus navigate on a dynamic immune
+landscape that is shaped by local infection history. Here we developed a comprehensive
+mechanistic model, incorporating deep mutational scanning data4,5, antibody
+pharmacokinetics and regional genomic surveillance data, to predict the variant-
+specific relative number of susceptible individuals over time. We show that this
+quantity precisely matched historical variant dynamics, predicted future variant
+dynamics and explained global differences in variant dynamics. Our work strongly
+suggests that the ongoing pandemic continues to shape variant-specific population
+immunity, which determines a variant’s ability to transmit, thus defining variant
+fitness. The model can be applied to any region by utilizing local genomic surveillance
+data, allows contextualizing risk assessment of variants and provides information for
+vaccine design.
+SARS-CoV-2 is still spreading at high rates6, with thousands of patients In this work, we reason that SARS-CoV-2 evolution is driven by
+in intensive care units and reported fatalities monthly7, notwithstand- infection history and the ability of elicited humoral immunity to
+ing long-term effects8. Although approximately 775 million cases have cross-neutralize emerging variants. To this end, we conjecture that
+been reported so far9, true numbers are magnitudes larger, and it is the variant-specific relative number of susceptible individuals pre-
+reasonable to assume that almost the entire world population has been dicts the relative fitness (and evolution) of SARS-CoV-2 in a region
+exposed to viral antigen so far10. of interest, over time. To calculate this quantity, we integrated avail-
+Since the onset of the pandemic, SARS-CoV-2 has evolved substan- able data as summarized in Fig. 1: deep mutational scanning (DMS)
+tially in the spike protein1, which harbours all epitope sites for neu- data5,17 identified epitopes of neutralizing (spike-targeting) anti-
+tralizing antibodies elicited by vaccines or infection2. For example, bodies, which, when combined with lineage-specific spike altera-
+the Omicron lineages BA.1 and BA.2 contained multiple alterations in tion profiles, allowed us to compute cross-neutralization between
+spike epitopes, allowing them to infect vaccinated and convalescent any pair of variants. By integrating antibody pharmacokinetics, we
+individuals11–14, who represented most of the population at the time. could then compute how much and how long a recovery from a recent
+Although inter-country differences in viral evolution existed early infection with a variant will protect against another variant. Last, we
+in the pandemic15, the geographical variation of emerging Omicron reconstructed the infection timeline in the region of interest and
+sublineages reflects an increasing complexity of the global immuno- combined this timeline with historical SARS-CoV-2 variant dynamics
+logical landscape, in which the course of infection waves with new (sub) to estimate the expected number of susceptible individuals for each
+variants in a particular region could be substantially influenced by the variant. If SARS-CoV-2 evolution was decisively driven by population
+infection history of that region (that is, which variants dominated the immunity, the variant-specific number of susceptible individuals
+preceding waves and at what time). This circumstance poses challenges should be directly proportional to the variant-specific transmission
+in optimizing the design of adapted mRNA vaccines to protect vulner- rate, and hence our model would allow us to estimate the competi-
+able groups or heavily exposed individuals. Despite the appreciation of tive growth (dis-) advantage (that is, the relative fitness) of any given
+the problem16 and the abundance of rich data sources for SARS-CoV-2, variant.
+there has been limited progress in integrating the available data to After introducing the main methodological concepts, we will first
+inform variant risk assessment and vaccine design. demonstrate our analytical approach using data from the German
+1Department of Mathematics & Computer Science, Freie Universität Berlin, Berlin, Germany. 2International Max-Planck Research School for Biology and Computation (IMPRS-BAC), Max-Planck
+Institute for Molecular Genetics, Berlin, Germany. 3Project Groups, Robert Koch Institute, Berlin, Germany. 4Department 1, Robert Koch Institute, Berlin, Germany. 5Department MFI, Robert Koch
+Institute, Berlin, Germany. 6These authors contributed equally: N. Alexia Raharinirina, Nils Gubela, Daniela Börnigen, Maureen Rebecca Smith. ✉e-mail: max.kleist@fu-berlin.de
+196 | Nature | Vol 639 | 6 March 2025
+
+============================================================
+PAGE 2
+============================================================
+Spike protein alteration profiles
+Molecular surveillance data
+Infection history
+(all lineages)
+Incidence reconstruction
+etalerroc
+ecnedicnI
+Mar.
+22
+May
+22
+Jul.
+22
+Sep.
+22
+Nov.
+22
+Jan.
+23
+Mar.
+23
+(of all lineages)
+Lineage proportions
+Will
+vanish
+Will
+spread
+ycneuqerf
+egaeniL
+Jul.
+22
+Sep.
+22
+Nov.
+22
+Jan.
+23
+Mar.
+23
+Jul.
+22
+Sep.
+22
+Nov.
+22
+Jan.
+23
+Mar.
+23
+Mar.
+22
+May
+22
+Jul.
+22
+Sep.
+22
+Nov.
+22
+Jan.
+23
+Mar.
+23
+COVID-19 epidemic, followed by an application to international data- resistance for each epitope class and for each pair of antibody-inducing
+sets. Finally, we will highlight regional differences in the immune land- lineage x and cross-neutralized lineage y on the basis of their genetic
+scape and their impact on variant dynamics. profiles and the DMS data. Fold resistances for three representative
+epitope classes and a set of relevant Omicron lineages are shown
+in Fig. 2c.
+Utilization of DMS data
+We utilized DMS data to compute cross-neutralization profiles for each
+Protection against viral infection
+possible pair of ‘antibody-inducing’ variant x and cross-neutralized vari-
+ant y (upper panels in Fig. 1). In the original DMS data, ‘escape fractions’ Although cross-neutralization potency can qualitatively describe the
+were assigned to all sites in the receptor-binding domain (RBD) region antigenic overlap between variants, the ability to neutralize the virus
+for a large panel of 836 antibodies4,5,17, which were aggregated into 10 (and prevent infection) depends on the neutralizing antibody concen-
+epitope classes18 as highlighted in Fig. 2a,b (details on antibodies and trations at the time of viral re-exposure19.
+classes in Supplementary Tables 1 and 2). We processed the original Neutralizing antibody levels rise within 1 to 2 weeks after initial
+DMS data to derive ‘fold resistances’ to cross-neutralization (Extended antigen exposure and slowly decay afterwards. We parameterized a
+Data Fig. 1a–c) between antibody-inducing and antigen-presenting line- simple pharmacokinetic model to capture the antibody concentra-
+ages (Fig. 2a and Methods). Intuitively, fold resistance values denote tion–time profile after initial antigen exposure (Methods and Extended
+how much more antibody is needed to neutralize mutant virus y to the Data Fig. 1h). Then, on the basis of DMS data, we computed a relative
+same extent as antibody-inducing lineage x. A comparison between weighting of antibodies belonging to different epitope classes, as
+fold resistances obtained through our method from DMS data with shown in Fig. 2b. This data-derived weighting may reflect the acces-
+fold resistances obtained through neutralization assays yielded overall sibility of the distinct epitopes, the strength of binding or the capa-
+good agreement for monoclonal sera (Extended Data Fig. 1d), as well bility to neutralize the virus when an antibody is bound. Our analysis
+as polyclonal sera (Extended Data Fig. 1e–g). Next, we computed a fold showed that antibodies of epitope classes A, B, D2 and F3 more potently
+Nature | Vol 639 | 6 March 2025 | 197
+A38V Q641H E051K E381Q G312V E312V V252G D933G H933G T643R I863L N714K R444K N444K P544V S644G R254L K064N S684F V684F S094F
+DMS data
+(all lineages)
+C XB L. B 1 .1* Epitope classes
+CR.1
+F486
+Class B
+Fold resistance to cross-neutralization
+to antibodies targeting different epitopes
+(all-against-all lineages for all epitope classes)
+Epitope class A
+Wuhan-Hu-1 Strong Strong
+XBB.1* Antibody pharmacokinetics
+CL.1 Weak Weak (generic)
+CR.1
+Wuhan-Hu X -1 BB.1* CL.1 CR.1 Wuhan-Hu X - B 1 B.1* CL.1 CR.1
+Time since antigen exposure
+Cross-neutralization and immune waning
+(all-against-all lineages)
+After exposure to After exposure to
+Probability
+of neutralization
+Time since exposure Time since exposure
+054 064 054
+(all classes)
+Fold resistance
+Strong
+Weak
+Amino acid position
+Epitope class B
+noitartnecnoC
+Fig. 1 | Overview of data sources and data integration for modelling
+variant-specific immunity and fitness advantage. DMS data are
+used to define fold resistance to cross-neutralization (FR; that is, factor
+of decreased antibody potency), conferred by mutational differences
+between lineages at amino acid positions relevant to antibodies of
+an epitope class (top right). This information is combined with the
+mutational profiles of the distinct lineages (top panel) to compute ‘
+fold resistance maps’ to cross-neutralization between any pair of
+lineages (x, y) for each epitope class (left, second panel from top).
+Asterisks (for example, XBB.1*) indicate spike pseudo groups; that is,
+the group of lineages with identical mutations in the spike protein
+(for example, identical to XBB.1, in the case of XBB.1*). Antibody
+pharmacokinetics (right, second panel from the top) after antigen
+exposure are then combined with the fold resistance maps to compute
+the temporal profiles of virus cross-neutralization between any pair
+(x, y) of immunity-inducing variant x and another variant y. Finally,
+these variant-resolved immune waning dynamics are combined with
+the timeline of infection (lower right panels) with distinct variants in
+any region of interest, to compute the relative number of susceptible
+individuals γ(t) (lower left) for each variant over time. The relative
+y
+number of susceptible individuals γ(t) indicates the competitive
+y
+fitness advantage of each variant: if γ(t) > 0, variant y has the potential
+y
+to spread, and if γ(t) < 0, the variant will decrease in frequency and
+y
+eventually vanish.
+Relative number of susceptible individuals = fitness
+BA.2
+BA.4/5 BQ.1.1
+XBB.1.5
+Other
+
+============================================================
+PAGE 3
+============================================================
+Article
+Epitope class C
+0 2.022.112.152.692.682.742.772.22
+0 1.581.712.562.572.572.592.23
+0 1.952.772.612.562.582.17
+0 2.782.602.552.562.13
+0 1.591.871.932.68
+0 1.851.932.68
+0 1.202.71
+0 2.73
+0
+Wuhan- Hu B -1 A * .4 B * A + .2 B * E.1.1* BA.5 B * Q.1 G .1 C . * 1 H * . + 1 . X 1 B * B.1.5* E G.5 J N.1 Wuhan- Hu B -1 A * .4 B * A + .2 B * E.1.1* BA.5 B * Q.1 G .1 C . * 1 H * . + 1 . X 1 B * B.1.5* E G.5 J N.1 Wuhan- Hu B -1 A * .4 B * A + .2 B * E.1.1* BA.5 B * Q.1 G .1 C . * 1 H * . + 1 . X 1 B * B.1.5* E G.5 J N.1
+E E E
+neutralize the virus, whereas antibodies of classes E3 and F1 are less Notably, utilized clinical data vary considerably in the level of
+potent. reported risk reduction owing to statistical limitations (few observed
+On the basis of the previously computed cross-neutralization ‘infection events’), as well as heterogeneity in the study groups, which is
+potency, antibody pharmacokinetics and relative antibody potencies, a well-known phenomenon for prevention trials20. Regarding immune
+we subsequently estimated the probability of neutralizing the Delta waning dynamics after exposure to the Wuhan-Hu-1-variant antigen, we
+variant (genetic profile in Supplementary Table 3) after exposure to observe that Delta can be almost completely neutralized shortly after
+the Wuhan-Hu-1-variant antigen (Fig. 2d; data sources in Supplementary antigen exposure. However, neutralization probabilities decrease to
+Table 4). Assuming that neutralization probability approximates infec- 50%, depending on individual antibody pharmacokinetics, within 100
+tion risk reduction, we calibrated the model by estimating its only free to 250 days after exposure to the Wuhan-Hu-1-variant antigen (Fig. 2d).
+parameter (the average normalized half-maximal inhibitory anti- We then applied the calibrated model to predict Omicron (BA.1)
+body concentration IC ). After this step, no further model calibra- neutralization after exposure to the Wuhan-Hu-1-variant antigen. Our
+50(x)
+tion was performed. predictions align well with booster-vaccine efficacy data (summarized
+198 | Nature | Vol 639 | 6 March 2025
+]RF[
+gol
+01
+]RF[
+gol
+01
+]RF[
+gol
+01
+c
+CI
+evitaleR
+05
+16
+8
+4
+2
+1
+0
+A B C D1 D2 E12 E3 F1 F2 F3
+Antibody group (epitope class)
+100
+80
+60
+40
+20
+0
+1 100 200 300 400 500 600 1 100 200 300 400 500 600
+Time since antigen exposure (days)
+)%(
+ytilibaborp
+noitazilartueN
+100
+Exposure to Neutralization of
+80
+Wuhan-Hu-1 Delta
+60
+40
+20
+0
+Time since antigen exposure (days)
+)%(
+ytilibaborp
+noitazilartueN
+A
+B
+C
+D1
+D2
+E12
+E3
+F1
+F2
+F3
+NTD
+Epitope class A Epitope class B
+Wuhan-Hu-1* 0 1.551.491.491.581.341.401.781.87
+BA.2* 0 0.850.841.091.481.511.351.42
+BA.4* + BE.1.1* 0 0.330.991.411.441.291.35 1.5 3.0
+BA.5* 0 0.981.411.431.291.34 1.0 2.0
+BQ.1.1* 0 1.291.331.091.36
+CH.1.1* 0 0.821.431.63 0.5 1.0
+EG.1* + XBB.1.5* 0 1.391.62
+EG.5 0 1.47 0 0
+JN.1 0
+d
+Exposure to Neutralization of
+Wuhan-Hu-1 Omicron (BA.1)
+41 02 141 751 542 362 133 063 083 204 034 054 174 105 135
+2.0
+1.5
+1.0 0.5
+0
+]RF[
+gol 01
+a b
+0 1.662.322.332.392.373.663.672.38
+0 2.192.192.252.263.453.472.33
+2.5 0 1.091.5022..22553.453.472.32
+0 1.502.253.453.472.32 2.0
+0 2.183.333.342.37
+0 3.333.342.40 1.5
+0 1.423.44
+0 3.45
+0
+Fig. 2 | Cross-neutralization and immune waning dynamics. a, Fold resistance spike protein. d, Predicted neutralization probability of the Delta variant
+induced by mutational differences against antibodies of distinct epitope (blue range, left panel) and the Omicron variant (BA.1) (orange range, right
+classes at indicated sites. b, Relative potency IC of antibodies of specific panel) after exposure to the Wuhan-Hu-1 antigen P (t, Wuhan-Hu-1, Delta).
+50(DMS) Neut
+epitope classes in the DMS data. The solid horizontal lines show the respective Ranges depict minimum–maximum ranges resulting from pharmacokinetic
+average IC . The dotted horizontal line marks the average across all variability. The corresponding clinical vaccine efficacy is also indicated (blue
+50(DMS)
+epitope classes. c, Fold resistance to neutralization against immunity-inducing and orange markers, central estimate; vertical line, 95% confidence interval;
+variants (on y axis) for antibodies of epitope classes A, B and C. Asterisks horizontal line, range of time post vaccination as stated in the original study;
+indicate spike pseudo groups; that is, lineages with identical mutations in the see Supplementary Table 5).
+
+============================================================
+PAGE 4
+============================================================
+in Supplementary Table 5): our model predicts that Omicron BA.1 between our predictions and the real-world data: our model predicts
+(genetic profile in Supplementary Table 3) is initially neutralized the inflection point for BA.2 in April–May 2022, for the BA.4 + BA.5
+with 45–85% probability approximately 2 weeks after exposure to the pseudo-group between July and October 2022, and for the variants BF.7,
+Wuhan-Hu-1-variant antigen, with neutralizing immunity decaying BQ.1.1, XBB.1.5, XBB.1.9 and EG.5 in December 2022, January, mid-April,
+rapidly and reaching about 10% infection risk reduction between 80 summer and autumn 2023, respectively (compare areas (predictions)
+and 350 days post antigen exposure. Note that these predictions are versus lines (data) in the insets of Fig. 3a). For the more recent variants
+also broadly in agreement with in vitro neutralization data21. JN.1 and KP.1, KP.2 and KP.3, the model correctly predicts the inflection
+points during spring and summer 2024, respectively. Moreover, the
+data-derived change in variant frequency and our model-predicted
+Immune and variant dynamics in Germany
+immunity-driven relative fitness correspond in magnitude (see Meth-
+Next, we utilized the developed model to estimate the immune land- ods for a theoretical justification). Notably, availability of sequencing
+scape in Germany and assess whether it predicts variant dynamics. To data in Germany changed markedly in April 2023 (vertical dashed line
+apply the model to Germany, we integrated data from the national virus in Fig. 3a,b and highlighted in Extended Data Fig. 3), which strongly
+genomics surveillance, selecting randomly collected virus genomes affected confidence intervals regarding lineage frequency.
+between 1 July 2021 and 1 July 2024 (≈607,000 sequences; Supple- We next evaluated whether our model could forecast variant dynam-
+mentary Table 6) to predict immune dynamics between 1 March 2022 ics by using a dataset that ends on 16 April 2023. On the basis of this
+and 1 July 2024. The time from 1 July 2021 to 1 March 2022 served as a dataset, we evaluated the immunity-mediated relative growth advan-
+‘burn-in’ phase to converge to the initial immunological landscape. tage of the circulating variants XBB.1.5 (+ EG.1), XBB.1.9 (+ EG.1.3),
+The viral genomes from the German dataset belonged to 1,718 Pan- XBB.1.16, emerging variant EG.5.1 and variant BA.2.86 (‘pirola’), which
+golin lineages and harboured 124 and 219 alterations in the RBD and was detected for the first time on 24 July 2023 (3 months after the data-
+amino-terminal domain (NTD), respectively. Of these initial 1,718 line- set ended). We visualized these predictions together with the actual
+ages, 756 had unique spike profiles (‘spike pseudo-groups’). A total of variant dynamics observed after 16 April 2023 in Germany in Fig. 3b.
+227 spike pseudo-groups occurred at a frequency greater than 1% on Our predictions indicate that XBB.1.5 and XBB.1.9 had no growth dis-
+at least 1 calendar day (representing 1,098 pangolin lineages; Extended advantage by mid-April 2023, XBB.1.16 had a slight growth advantage
+Data Fig. 2). and EG.5.1 had a substantial growth advantage. These forecasts pre-
+We reconstructed the timeline of infection, and subsequently esti- cisely match the actual variant growth dynamics in Germany during
+mated the variant-specific infection timeline on the basis of lineage April–July 2023: XBB.1.5 and XBB.1.9 had reached their inflection
+frequencies. The variant-specific timeline of infection was then incor- points and declined subsequently from 35% and 20%, respectively, to
+porated into the DMS-derived cross-neutralization and immune wan- 5%, XBB.1.16 slightly increased from 2% to 10%, and EG.5.1 substantially
+ing model (previous paragraphs) to reconstruct the immunological increased from <1% to >30%. The not-yet-emerged variant BA.2.86
+landscape in Germany (Fig. 1 (lower panels) and Methods). had a model-predicted growth advantage that is slightly lower than
+To overcome increasingly unreliable case reporting data, we recon- EG.5.1, but with an increasing trend in contrast to all other lineages.
+structed SARS-CoV-2 incidence trajectories from time-stamped viral Notably, BA.2.86 and its daughter lineage JN.1 dominated in Germany
+genomes using the recently developed computational tool GInPipe22 and globally by January 2024.
+in combination with available wastewater viral load data. In principle,
+any unbiased incidence estimate could be used. Here we used GInPipe
+Global immune and variant dynamics
+for the time horizon 1 July 2021 to 31 March 2023, for which substan-
+tial amounts of viral genomic sequencing data are available (≈10,000 We next evaluated our model to predict the adaptive immune landscape
+sequences per week). We then use wastewater viral load data for the for 11 additional countries (Australia, Brazil, Canada, Denmark, France,
+remainder of the period, during which sequencing efforts dropped mas- Japan, Mexico, South Africa, Sweden, the UK and the USA). Essentially,
+sively (<100 sequences per week from April 2023; Extended Data Fig. 3). we changed only the input of our model to the respective local infection
+We used the temporal overlap between wastewater virus load data and history. In terms of data, this required only local genomic surveillance
+GInPipe incidence reconstructions (1 June 2022 to 31 March 2023) to data, which we retrieved from GISAID (the Global Initiative on Sharing
+estimate incidences from wastewater virus loads and to cross-validate All Influenza Data; summary of data in Supplementary Table 6). We
+incidence predictions (Extended Data Fig. 3). As an additional valida- then used GInPipe22 to reconstruct the incidence timeline as shown in
+tion of the incidence reconstruction method, we show in Extended Extended Data Fig. 5, highlighting that case reporting changed over
+Data Fig. 4 that official case numbers substantially under-report the time for all countries and almost ceased at the beginning of 2023.
+actual infection trajectory from the COVID-19 Infection Survey of the The genomic surveillance data were then used to reconstruct lineage
+Office for National Statistics6 in the UK and show that GInPipe estimates frequencies. From these two components (number of infections and lin-
+are coherent with Office for National Statistics data and overcome eage frequencies), we computed the time-dependent regional immune
+under-reporting biases. landscapes, which determine relative fitness of each lineage of interest.
+Next we reconstructed the timeline of all lineage frequencies, as In Fig. 4, we depict lineage frequencies in the 11 countries together
+illustrated for the most abundant groups in Fig. 3a. If SARS-CoV-2 evolu- with model-predicted relative fitness γ for the 20 most common line-
+y
+tion is driven by population immunity, the relative fitness of a variant ages during October 2022–October 2023. By utilizing the individual
+will be determined by the expected number of individuals who are infection history in each country, the model predicts well whether a
+susceptible to the variant, relative to the expected number of suscep- lineage is going to rise (relative fitness γ > 0) or decline (γ < 0) with
+y y
+tible individuals across competing (that is, simultaneously circulating) an average accuracy of 0.92 (Extended Data Fig. 6a). Besides the three
+variants. In other words, on the basis of immunity, the relative fitness major lineages (BA.5, BQ.1 and XBB.1.5) that spread to some extent in
+will be determined by whether the variant can infect more (or fewer) all countries, our model was also able to predict the dynamics of some
+individuals than the current viral population. To test this hypothesis, we country-specific lineages, such as BR.2.1, XBC.1.3 and XBC.1.6 in Aus-
+computed the expected number of susceptible individuals for each vari- tralia, FE.1 and GK.1 in Brazil, BN.1.X in Denmark, and HK.3 in Australia
+ant by integrating infection history, cross-neutralization and immune and Japan at the end of the investigated time horizon. Moreover, dif-
+waning (Fig. 1 and Methods). We calculated this immunity-driven rela- ferences in the magnitude and duration of lineage-specific waves in
+tive fitness from our model and compared the predictions with histori- the distinct countries became apparent, and the diversity of lineages
+cal changes in variant frequencies (Fig. 3a). We found a strong match increased towards the end of the investigated time horizon.
+Nature | Vol 639 | 6 March 2025 | 199
+
+============================================================
+PAGE 5
+============================================================
+Article
+a
+0.1
+0
+–0.1
+–0.2
+1 Apr. 2 1 0 M 22 ay 2 1 0 J 2 u 2 n. 2 1 0 2 J 2 ul. 1 2 0 A 2 u 2 g. 1 2 0 S 2 e 2 p. 2 1 0 O 22 ct. 2022
+Model-simulated
+relative growth rates
+Data-derived
+change in
+frequency
+b
+200 | Nature | Vol 639 | 6 March 2025
+ssentfi
+evitaleR
+0.1 BA.4.X + BA.5.X + BE.1.1
+BA.2.X 0
+–0.1
+1 Ma 1 y J 2 u 0 n 1 2 . 2 2 J 1 u 0 l 2 . A 2 2 u 1 0 g 2 . S 2 2 e 0 p 1 2 . O 2 2 1 c 0 t 2 N . 2 2 o 1 0 v 2 . D 2 2 e 0 1 c 2 . J 2 2 a 0 1 n 2 . F 2 2 e 0 1 b 2 . M 3 2 a 0 1 r 2 . A 3 2 p 0 r 2 . 3 2023
+0.10
+0.05
+0
+–0.05
+–0.10
+ssentfi
+evitaleR
+0.15 0.15
+0.10 XBB.1.5.X + EG.1.X 0.05 JN.1.X + BA.2.86.X
+0.10 0.05 KP.X
+0
+0 0.05
+–0.05 –0.05 0
+1 Ja 1 n . F 2 e 0 1 b 2 . M 3 2 a 0 1 r 2 . A 3 2 p 0 1 r 2 . M 3 2 a 0 1 y 2 J 3 2 u 0 n 1 2 . 3 2 J 1 0 u 2 l. A 3 2 u 1 0 g 2 . S 3 2 e 0 p 1 2 . O 3 2 1 c 0 t 2 N . 3 2 o 1 0 v 2 . D 3 2 e 0 c 2 . 3 2023 1 Oc 1 t. N 2 o 0 v 2 1 . 3 D 20 e 2 c 1 . 3 2 J 0 a 2 n 1 3 . F 2 e 0 b 2 1 . 4 M 20 a 2 r 1 . 4 2 A 0 p 2 r 1 4 . 2 M 0 a 2 1 y 4 2 Ju 0 n 2 . 4 1 2 J 0 u 2 l 4 . 2024 1 Apr. 2024 1 May 2024 1 Jun. 2024 1 Jul. 2024
+100
+75
+50
+25
+0
+1
+Apr.
+202
+1
+2
+May
+202
+1
+2
+Jun.
+2022
+1
+Jul.
+202
+1
+2
+Aug.
+202
+1
+2
+Sep.
+202
+1
+2
+Oct.
+202
+1
+2
+Nov.
+202
+1
+2
+Dec.
+202
+1
+2
+Jan.
+202
+1
+3
+Feb.
+202
+1
+3
+Mar.
+202
+1
+3
+Apr.
+202
+1
+3
+May
+202
+1
+3
+Jun.
+2023
+1
+Jul.
+202
+1
+3
+Aug.
+202
+1
+3
+Sep.
+202
+1
+3
+Oct.
+202
+1
+3
+Nov.
+202
+1
+3
+Dec.
+202
+1
+3
+Jan.
+202
+1
+4
+Feb.
+202
+1
+4
+Mar.
+202
+1
+4
+Apr.
+202
+1
+4
+May
+202
+1
+4
+Jun.
+2024
+1
+Jul.
+2024
+0.15
+0.1 0.10
+0.10
+0 0.05 XBB.1.9.X 0.05 EG.5.X
+0 0
+BF.7.X –0.1 BQ.1.1.X
+–0.05
+1 Sep. 2 1 0 O 22 ct. 1 2 0 N 2 o 2 v. 2 1 0 D 22 ec. 2 1 0 J 2 a 2 n. 1 2 0 F 2 e 3 b. 2 1 0 M 23 ar. 2023 1 Nov. 1 2 D 02 e 2 c. 1 2 0 J 2 a 2 n. 1 2 F 0 e 2 b 3 . 1 2 M 02 a 3 r. 1 2 0 A 2 p 3 r. 1 2 0 M 2 a 3 y 1 2 J 0 u 2 n 3 . 2023 1 Mar. 20 1 2 A 3 pr. 20 1 2 M 3 ay 20 1 2 J 3 un. 20 1 2 3 Jul. 20 1 2 A 3 ug. 2023 1 Jun. 1 2 J 0 u 2 l 3 . 1 2 A 0 u 2 g 3 1 . 2 S 0 e 2 p 3 1 . 2 O 0 c 2 t 3 1 . 2 N 0 o 2 v 3 1 . 2 D 0 e 2 c 3 1 . 2 J 0 a 2 n 3 1 . 2 F 0 e 2 b 4 . 2024
+ycneuqerf
+egaeniL
+40
+30
+20
+10
+0
+)%(
+ycneuqerf
+egaeniL
+0.25
+XBB.1.5.*+EG.1.*
+EG.5.1.*
+0.20 XBB.1.9.X + EG.1.3
+XBB.1.16.X
+BA.2.86
+0.15
+0.10
+0.05
+0
+1 Jan. 2023 15 Jan. 2023 29 Jan. 2023 12 Feb. 2023 26 Feb. 2023 12 Mar. 2023 26 Mar. 2023 9 Ap 1 r. 5 2 A 0 p 2 r 3 . 2023 29 Apr. 2023 13 May 2023 27 May 2023 10 Jun. 2023 24 Jun. 2023 8 Jul. 2023 22 Jul 2 . 7 2 0 J 2 u 3 l. 2023
+ssentfi
+evitaleR
+–0.05
+Fig. 3 | Dynamic immune landscape and variant dynamics in Germany. advantage γ of emerging spike pseudo-groups XBB.1.5* (+ EG.1*), XBB.1.9.X
+y
+a, Historical variant dynamics in Germany during 1 March 2022 to 1 July 2024 (+ EG.1.3), XBB.1.16.X, EG.5.1* and BA.2.86 (colours in key) using data until
+of spike pseudo-groups BA.2,.X BA.5.X (+ BA.4.X + BE.1.1), BF.7.X, BQ.1.1.X, 15 April 2023 (asterisks (for example, EG.1*) indicate spike pseudo groups; that
+XBB.1.5.X (+ EG.1.X), XBB.1.9.X, EG.5.X, JN.1.X (+ BA.2.86.X) and KP.X, where ‘.X’ is, the group of lineages with identical mutations in the spike protein). Note
+denotes inclusion of the respective sublineages. Confidence intervals were that BA.2.86 was first detected on 24 July 2023 in Denmark and represents the
+computed using Wilson’s method. Insets show model-predicted relative dominating lineage (together with daughter lineage JN.1 globally, as of January
+fitness γ(t) (representing the relative number of susceptible individuals; 2024). Thick lines show average values, and light lines show minimum–maximum
+y
+coloured areas), with superimposed changes in frequency (π(t − 1)/π(t) − 1) ranges resulting from pharmacokinetic variability. Right: data-derived lineage
+y y
+seen in the data (solid lines). Note that the sequencing intensity changed frequencies in the time after the prediction horizon (15 April 2023 to 27 July
+markedly in April 2023 (vertical dashed line) as highlighted in Extended Data 2023). Confidence intervals (95%) were calculated using Wilson’s method with
+Fig. 3. b, Predicted variant dynamics. Left: model-predicted relative growth sample size n = 2,919, 500, 165 and 164 for April, May, June and July, respectively.
+
+============================================================
+PAGE 6
+============================================================
+50
+25
+0
+our model to calculate its immunity-driven relative fitness (Fig. 5a).
+Infection history dictates lineage success
+We observed that although BA.2.12.1 emerged in the USA as soon as
+Next we wanted to investigate why particular lineages were suc- March 2022, by the time it reached Germany and Japan (May 2022),
+cessful in only some, but not all countries. For example, BA.2.12.1 its relative fitness was already declining and reached γ < 0 soon
+y
+dominated in the USA, with variant proportions >50% between the after, which predicts that the variant would be less fit than the aver-
+beginning of May 2022 and mid-June 2022, but did not reach simi- age viral population, and fail to invade Germany and Japan. In other
+lar dominance elsewhere. Notably, BA.2.12.1 is a daughter lineage of words, BA.2.12.1 could not spread in Germany and Japan, because it
+BA.2 that acquired the alteration 452Q. To test our hypothesis that entered the country ‘too late’ and the preceding BA.2 wave (March
+infection history and variant-specific immunity may have deter- to June or July 2022) had created substantial cross-neutralizing
+mined the success of BA.2.12.1 in the USA, but not elsewhere, we used immunity.
+Nature | Vol 639 | 6 March 2025 | 201
+ycneuqerf
+egaeniL
+Australia
+0.1
+0
+–0.1
+ssentfi
+evitaleR
+50
+0
+ycneuqerf
+egaeniL
+Brazil
+0.1
+0
+–0.1
+ssentfi
+evitaleR
+50
+0
+ycneuqerf
+egaeniL
+Canada
+0.1
+0
+–0.1
+ssentfi
+evitaleR
+50
+25
+0
+ycneuqerf
+egaeniL
+Denmark
+0.2
+0
+ssentfi
+evitaleR
+50
+0
+ycneuqerf
+egaeniL
+France
+0.1
+0
+–0.1
+ssentfi
+evitaleR
+50
+25
+ycneuqerf
+egaeniL
+Japan
+0
+–0.2
+ssentfi
+evitaleR
+50
+0
+ycneuqerf
+egaeniL
+Mexico
+0.1
+0
+–0.1
+ssentfi
+evitaleR
+50
+0
+ycneuqerf
+egaeniL
+South Africa
+0.1
+0
+–0.1
+ssentfi
+evitaleR
+50
+25
+0
+ycneuqerf
+egaeniL
+Sweden
+0.1
+0
+–0.1
+1
+Nov. 2
+1
+0
+D
+22 ec. 2
+1
+0 2
+J
+2 an. 2
+1
+0 2
+F
+3 eb. 2
+1
+0
+M
+23 ar. 2
+1
+0 2
+A
+3 pr. 2
+1
+0 2
+M
+3 ay 2
+1
+0 2
+J
+3 un. 20
+1
+2
+J
+3 ul. 2
+1
+0
+A
+23 ug. 2
+1
+0
+S
+23 ep. 2
+1
+0 2
+O
+3 ct. 2023
+1
+Nov. 2
+1
+0
+D
+22 ec. 2
+1
+0 2
+J
+2 an. 2
+1
+0 2
+F
+3 eb. 2
+1
+0 2
+M
+3 ar. 2
+1
+0 2
+A
+3 pr. 2
+1
+0 2
+M
+3 ay 2
+1
+0 2
+J
+3 un. 2
+1
+0 2
+J
+3 ul. 2
+1
+0 2
+A
+3 ug. 2
+1
+0
+S
+23 ep. 2
+1
+0 2
+O
+3 ct. 2023
+1
+Nov. 2
+1
+0
+D
+22 ec. 2
+1
+0 2
+J
+2 an. 2
+1
+0 2
+F
+3 eb. 2
+1
+0 2
+M
+3 ar. 2
+1
+0 2
+A
+3 pr. 2
+1
+0 2
+M
+3 ay 2
+1
+0 2
+J
+3 un. 2
+1
+0 2
+J
+3 ul. 2
+1
+0 2
+A
+3 ug. 2
+1
+0
+S
+23 ep. 2
+1
+0 2
+O
+3 ct. 2023
+ssentfi
+evitaleR
+50
+25
+ycneuqerf
+egaeniL
+UK
+0.1
+0
+ssentfi
+evitaleR
+50
+0
+ycneuqerf
+egaeniL
+USA
+0.1
+0
+–0.1
+ssentfi
+evitaleR
+a b c
+FE.1.X BR.2.1 XBC.1.X
+GK.1.X XBF HK.3
+d e f
+BN.1.X BF.5.X
+XBB.1.9.X EG.5.X
+HK.3
+g h i
+CH.1.X
+j k
+CH.1.X
+BA.5.X
+XBB.1.16.X
+BQ.1.X
+XBB.1.5.X
+EG.5.1.X
+EG.1.X
+BF.7.X
+Fig. 4 | Dynamic immune landscape and variant dynamics across the globe. minimum–maximum intervals resulting from pharmacokinetic variability) for
+a–k, The relative abundance of major lineages when they surpass 3% relative Australia (a), Brazil (b), Canada (c), Denmark (d), France (e), Japan (f), Mexico
+abundance (solid lines, top) along with their model-calculated relative (g), South Africa (h), Sweden (i), the UK (j) and the USA (k). Note that in Brazil,
+fitness γ(t) (bottom lines represent mean estimates, shaded areas represent the lineages BQ.1.X include BE.9, and lineages XBB.1.5.X include XBB.1.18.1.
+y
+
+============================================================
+PAGE 7
+============================================================
+Article
+a BA.2.12.1 b XBB.1.16.X c BF.7.X
+60 USA 0.100
+G Ja e p rm an any 0.075 50 0.050
+40 0.025
+0
+30
+–0.025
+20 –0.050
+10 –0.075
+–0.100
+0
+31
+Mar.
+2022
+30
+Apr.
+2022
+31
+May
+2022
+30
+Jun.
+2022
+31
+Jul.
+2022
+31
+Mar.
+202
+3
+3
+0
+Apr.
+202
+3
+3
+1
+May
+202
+3
+3
+0
+Jun.
+2023
+31
+Jul.
+202
+3
+3
+1
+Aug.
+202
+3
+3
+0
+Sep.
+2023
+30
+Sep.
+2022
+31
+Oct.
+2022
+30
+Nov.
+2022
+31
+Dec.
+2022
+d e
+BR.2.1 JN.1 + BA.2.86
+60 Australia 0.100 1.0
+0.075 50 0.04
+0.050 0.8
+40 0.025 0.03
+0.6
+30 0
+0.02
+20 –0.025 0.4
+–0.050 0.01
+10 0.2
+–0.075
+0
+0 –0.100
+30
+Nov. 2022
+31
+Dec. 2022
+31
+Jan. 2023
+28
+Feb. 2023
+31
+Mar. 2023
+30
+Apr. 2023
+15
+May 20
+1
+2
+5
+3 Jun. 20
+1
+2
+5
+3 Jul. 20
+1
+2
+5
+3 Aug. 20
+1
+2
+5
+3 Sep. 20
+1
+2
+5
+3 Oct. 2
+1
+0
+5
+2 3 Nov. 20
+1
+2
+5
+3 Dec. 20
+1
+2
+5
+3 Jan. 2024
+f g
+FE.1.X, EG.5.1.X GK.1.X, HK.3.X
+50 50
+0.06 0.06
+40 0.04 40 0.04
+30 0.02 30 0.02
+0 0
+20 –0.02 20 –0.02
+10 –0.04 10 –0.04
+–0.06 –0.06
+0 0
+31
+Jan.
+20
+2
+2
+8
+3
+Feb.
+20
+3
+2
+1
+3
+Mar.
+20
+3
+2
+0
+3
+Apr.
+20
+3
+2
+1
+3
+May
+20
+3
+2
+0
+3
+Jun.
+202
+3
+3
+1
+Jul.
+20
+3
+2
+1
+3
+Aug.
+20
+3
+2
+0
+3
+Sep.
+2023
+31
+Mar.
+2023
+30
+Apr.
+2023
+31
+May
+2023
+30
+Jun.
+2023
+31
+Jul.
+2023
+31
+Aug.
+2023
+30
+Sep.
+2023
+We looked at XBB.1.16, an XBB.1.5 descendent with the 478K alter- A notable phenomenon can be observed with strain BF.7, which
+ation, in Japan versus Sweden, as another example. Whereas the spread substantially in Germany and Denmark, but not in the USA
+lineage quickly spread in Japan towards frequencies of 25% within (Fig. 5c). BF.7 is a descendent of BA.5 that acquired an alteration at
+2 months, it rose only modestly to ≤15% in Sweden. Our model 346T (an alteration that occurred in several independent lineages
+precisely predicted these dynamics, indicating that XBB.1.16 had by convergent evolution23,24). On the first appearance of BF.7, its
+a substantial immunological advantage in Japan that dissipated predicted relative fitness is low in the USA, and in fact, BF.7 occurs
+by the end of April 2023. By contrast, the lineage had only a mod- less frequently in the USA than in Germany or Denmark. At the same
+est model-predicted fitness advantage in Sweden, which vanished time, BQ.1 is circulating in the USA, but not in Germany or Denmark.
+around the same time (Fig. 5b). An explanation of this model pre- BQ.1 seems to better fill the existing immunological niche in the USA.
+diction (and observed variant dynamics) lies in the length of the Although BQ.1 never succeeds in these two European countries, BQ.1.1,
+preceding XBB.1.5 wave between the two countries: in Sweden, the which denotes a BQ.1 daughter lineage that acquired 346T, occurs
+XBB.1.5 (+EG.1) wave was substantial, creating cross-immunity towards instead, putting an end to the further spread of BF.7 (compare insets
+XBB.1.16. By contrast, the corresponding infection wave in Japan con- in Fig. 3a).
+tained a mix of lineages (compare also Fig. 4f,i and Extended Data In Australia, lineage BR.2.1 replaced BQ.1.X from November 2022
+Fig. 5), which left an immunological niche to be filled by XBB.1.16 in as predicted by our model (Figs. 4a and 5d). Both lineages evolved
+Japan. alterations at the same positions within the RBD (339 and 486), but
+202 | Nature | Vol 639 | 6 March 2025
+ycneuqerf
+egaeniL
+ycneuqerf
+egaeniL
+ycneuqerf
+egaeniL
+ssentfi
+evitaleR
+ssentfi
+evitaleR
+ssentfi
+evitaleR
+ycneuqerf
+egaeniL
+ycneuqerf
+egaeniL
+ssentfi
+evitaleR
+ssentfi
+evitaleR
+Japan Germany
+Sweden Denmark USA
+UK Denmark
+UK USA UK Denmark USA
+FE.1 Brazil FE.1, EG.5.1 Brazil FE.1 France GK.1 Brazil GK.1, HK.3 Japan GK.1 Japan
+EG.5.1 France FE.1, EG.5.1 France EG.5.1 France HK.3 Japan GK.1 Brazil HK.3 Japan
+Fig. 5 | Country-specific immune landscape and effects on variant the UK (cyan dashed line) along with the corresponding model-predicted
+success. a, Dynamics of BA.2.12.1 in the USA (green dashed line) versus relative fitness (orange and cyan areas, respectively). e, Model-predicted
+Germany (black dashed line) and Japan (red dashed line) along with the model- relative fitness of BA.2.86 and JN.1 in the USA, UK and Denmark (green, cyan
+predicted relative number of BA.2.12.1 susceptible individuals (representing and yellow areas, respectively) up to mid-November 2023 and variant dynamics
+relative fitness γ) in the USA, Germany and Japan (green, grey and red areas, in the following 2 months (green, cyan and yellow, respectively; error bars
+y
+respectively). b, Dynamics of XBB.1.16 in Japan and Sweden (red and magenta represent mean frequency and 95% confidence interval computed using
+dashed lines, respectively) along with the model-predicted relative fitness (red Wilson’s method). f, Dynamics of convergently evolved lineages FE.1 in Brazil
+and magenta areas, respectively). c, Dynamics of BF.7 in Germany, Denmark (green dashed line) versus EG.5.1 in France (purple dashed line) and predicted
+and USA (dashed black, yellow and green lines, respectively) along with the relative fitness (shaded areas). g, Dynamics of convergently evolved lineages
+model-predicted relative fitness (grey, yellow and green areas, respectively). GK.1 (Brazil, purple dashed line) versus HK.3 (Japan, red dashed line) along
+d, Dynamics of endemic variant BR.2.1 in Australia (orange dashed line) versus with the model-predicted relative fitness (shaded areas).
+
+============================================================
+PAGE 8
+============================================================
+the respective alterations are distinct (339H and 486I in BR.2.1, and In our study, we utilized DMS data to compute cross-neutralization
+339D and 486V in BQ.1.1). Moreover, whereas BR2.1 acquired 446S, between any pair of variants, including those that have not yet appeared
+BQ1.1 acquired an alteration at 444T. However, the main difference is (Figs. 3b and 5e). Combining these data with incidence reconstruc-
+that BR.2.1 emerged from BA.2.75 with five alterations in the antigenic tion from virus sequencing data22, or a combination of unbiased inci-
+super-site of its NTD that are not present in BA.5 descendent strains, dence measures (such as viral load measurements in wastewater32;
+such as BQ.1.X. Considering that a massive wave of BA.5 preceded the Extended Data Figs. 3 and 4), we could overcome limitations of earlier
+emergence of BR.2.1, it is not unexpected to find (and predict) that works3. Overall, the developed method can accurately model regional
+BR.2.1 would initially have a larger immunological niche than BQ.1.X, as immune landscapes that were shaped by the infection history of all
+predicted for Australia. This raises the question of whether BR.2.1 would (≫100) locally encountered variants, explaining country-specific dif-
+have spread elsewhere. Our model predicted that it could have (for ferences in evolutionary dynamics (Fig. 5) and including countries with
+example, in the UK). However, only sporadic BR.2.1 imports occurred, regionally endemic variants (for example, BR.2.1 in Australia, and FE.1
+with all infection chains ending, before the variant could overtake and GK.1 in Brazil; Fig. 5d,f,g).
+(Fig. 5d).
+Next, we wanted to assess whether our model would predict the
+Limitations
+dynamics of the emerging lineage BA.2.86 (and JN.1) at the end of 2023.
+This lineage lacks many alterations that were previously acquired in Although the developed model has minimal data requirements,
+convergently evolved lineages (for example, 346T, 368I, 445P, 455F, genomic surveillance data need to be available to contextualize the
+456L and 490S), but instead harbours a set of unique alterations in the risk of occurrence and spread of variants to a regional scale. On the basis
+NTD and RBD. When taking the end of our investigated timeline into of a sensitivity analysis for the German dataset (Extended Data Fig. 8),
+account (mid-November 2023), our model predicts that BA.2.86 (+JN.1) we recommend at least 100 randomly sampled sequences per week.
+would increase in frequency in all investigated countries (illustrated in Our model relied on a number of assumptions and simplifications.
+Fig. 5e for a selection of countries). As predicted by our model, BA.2.86 We did not include seasonality, because it is irrelevant for determining
+and JN.1 were steeply on the rise from mid-November 2023 until Janu- the relative variant-specific fitness (it cancels out). Although there is
+ary 2024. Our model even predicted the magnitude of increase, for still no scientific consensus regarding the seasonality of SARS-CoV-2
+which the steepest increase is observed in the USA, followed by the incidence33, a recent study of influenza and endemic coronaviruses sug-
+UK and Denmark. gested that the availability of susceptible individuals may be a dominant
+Last, we looked at convergent evolution in different regions of the driver for infection incidence34.
+globe. For example, FE.1 and EG.5.1 dominated in Brazil versus all other We did not consider the timeline of vaccination, as we found no
+investigated countries. They share an almost identical RBD and NTD impact on relative fitness estimates γ(t) (Extended Data Fig. 6b) for
+y
+alteration profile, but emerged from XBB.1.18.1 versus XBB.1.9, respec- the considered time horizon. This observation can be explained by the
+tively. Our model estimates nearly identical relative fitness for these limited uptake of BA.4 + BA.5-adapted booster vaccines (for example,
+two lineages in the individual countries. FE.1 rose to dominance in ≈5.6 million doses in comparison to ≈23.4 million BA.4 and BA.5 infec-
+Brazil in May 2023 and started to be replaced by July 2023, as predicted tions in Germany). For the ≈60 million Wuhan-Hu-1-based third-dose
+by our model. FE.1 was never really exported in considerable quanti- boosters in Germany, we observed that they had a scaling effect on
+ties to Europe, the USA or South Africa, leaving the immunological γ(t) that vanished by 2023 (Extended Data Fig. 7). Wuhan-Hu-1-based
+y
+niche to be filled by EG.5.1, which appeared from August onwards and booster vaccinations removed susceptible individuals similarly across
+rose to dominance. However, EG.5.1 could never successfully invade all Omicron variants, inducing stronger competition (higher amplitude
+Brazil, as FE.1 had already created cross-immunity. Likewise, GK.3 (an of γ(t)), without affecting the order of γ(t) estimates, or inflection
+y y
+XBB.1.5 descendent) rose in Brazil after the FE.1 wave. As predicted by point predictions. As vaccine uptake further declined from 2023 and
+our model, HK.3 (an EG.5 descendent) with an identical NTD and RBD infection dynamics remained at a high level (Extended Data Fig. 5), our
+profile compared to GK.3 rose in Japan and Australia after the respec- observation strongly suggested that it is not necessary to consider
+tive EG.5.1 wave. vaccinations to estimate relative fitness from 2023 onwards (Figs. 4
+These numerous applications of our model highlight that we can and 5). However, it will probably be crucial to consider vaccination
+identify whether an emerging variant may encounter an immunological uptake when evaluating case severity and hospitalization risks, which
+niche in a particular country that favours its growth. Thus, the model is beyond the scope of the developed model; the model does not con-
+may be suitable to serve as a variant alert system that can be applied sider cellular immune responses, which are an important determinant
+to the regional infection history. of clinical severity.
+Notably, as the scope of our model is the prediction of the (humoral)
+immune pressure at a population level, we consider the average immune
+Discussion
+dynamics, which may not predict individual protection profiles that
+Exposure to SARS-CoV-2 triggers adaptive immune responses, which, in emerged from a complex sequence of antigen exposures35. Likewise,
+simplified terms, comprise a cellular immune response (CD4+ and CD8+ our model is not suitable for estimating an absolute protective antibody
+T cell responses) and a humoral immune response (B cell-associated titre against SARS-CoV-2 infection as it operates with unitless antibody
+antibody production)25,26. Although T cell immunity may contribute to concentrations.
+an overall decline in SARS-CoV-2 transmissibility and severity27,28, it may In predicting variant phenotypes, we assumed that antibody-evasive
+not differentiate between variants, as variants share T cell epitopes29, mutational effects are mostly additive36, which allowed us to utilize DMS
+and T cells are often cross-reactive30. Among the produced antibodies, data to quantify the effect of antibody-evasive alterations in complex
+only those targeting epitopes in the RBD and NTD of the spike protein, evolutionary backgrounds (compare Extended Data Fig. 1d,e–g). This
+the main site of viral evolution, are considered virus neutralizing31. assumption is coherent with cases in which compensatory alterations
+Herein, we developed a mechanistic model, combining regional infec- enable the emergence of antibody-evasive alterations and in which
+tion history and variant cross-neutralization based on RBD and NTD there is no direct epistatic interaction between antibody-evasive
+alteration profiles, to predict an adaptive immune landscape. This alterations37. However, machine-learning-based approaches could
+landscape describes the relative number of susceptible individuals in the future be utilized38 instead of DMS, to capture more complex
+for any SARS-CoV-2 variant, determines its relative fitness and dictates epistatic interactions. Likewise, protein language models39 may be
+variant dynamics (Figs. 3–5). used to forecast the acquisition of additional alterations in emerging
+Nature | Vol 639 | 6 March 2025 | 203
+
+============================================================
+PAGE 9
+============================================================
+Article
+variants and, when combined with our work, enable us to extend its 16. Worp, N. et al. Towards the development of a SARS-CoV-2 variant risk assessment tool:
+prediction horizon (compare Fig. 3b). expert consultation on the assessment of scientific evidence on emerging variants.
+Lancet Microbe 4, e830–e836 (2023).
+17. Greaney, A. J., Starr, T. N. & Bloom, J. D. An antibody-escape estimator for mutations to the
+SARS-CoV-2 receptor-binding domain. Virus Evol. 8, veac021 (2022).
+Conclusion 18. Cao, Y. et al. Omicron escapes the majority of existing SARS-CoV-2 neutralizing antibodies.
+Nature 602, 657–663 (2022).
+Overall, our work provides proof that the ongoing evolution of SARS- 19. Khoury, D. S. et al. Neutralizing antibody levels are highly predictive of immune protection
+CoV-2 is driven by variant-specific population immunity. Moreover, from symptomatic SARS-CoV-2 infection. Nat. Med. 27, 1205–1211 (2021).
+20. Kryscio, R. J., Mendiondo, M. S., Schmitt, F. A. & Markesbery, W. R. Designing a large
+the developed model constitutes a means to calculate the dynamic
+prevention trial: statistical issues. Stat. Med. 23, 285–296 (2004).
+immune landscape that resulted from recent infection history and 21. Gruell, H. et al. mRNA booster immunization elicits potent neutralizing serum activity
+determines variant fitness. against the SARS-CoV-2 Omicron variant. Nat. Med. 28, 477–480 (2022).
+22. Smith, M. R. et al. Rapid incidence estimation from SARS-CoV-2 genomes reveals
+In the future, our approach could serve as a basis to identify epitopes
+decreased case detection in Europe during summer 2020. Nat. Commun. 12, 6009 (2021).
+most likely to be under recent selective pressure and, therefore, provide 23. Focosi, D., Quiroga, R., McConnell, S., Johnson, M. C. & Casadevall, A. Convergent
+cues for designing vaccine candidates that maximize neutralization evolution in SARS-CoV-2 spike creates a variant soup from which new COVID-19 waves
+emerge. Int. J. Mol. Sci. 24, 2264 (2023).
+breadth against emerging variants in a forthcoming season. For this,
+24. Ito, J. et al. Convergent evolution of SARS-CoV-2 Omicron subvariants leading to the
+previously developed approaches in the context of influenza H3N2 vac- emergence of BQ.1.1 variant. Nat. Commun. 14, 2671 (2023).
+cine design40,41 could be complemented using the SARS-CoV-2 fitness 25. Sette, A. & Crotty, S. Adaptive immunity to SARS-CoV-2 and COVID-19. Cell 184, 861–880
+(2021).
+models developed herein. Furthermore, our conceptual ideas may be
+26. Liao, B. et al. Detection of anti-SARS-CoV-2-S2 IgG is more sensitive than anti-RBD IgG in
+transferred to model the evolution of other respiratory viruses that are identifying asymptomatic COVID-19 patients. Front. Immunol. 12, 724763 (2021).
+subject to molecular surveillance. 27. Rydyznski Moderbacher, C. et al. Antigen-specific adaptive immunity to SARS-CoV-2 in
+acute COVID-19 and associations with age and disease severity. Cell 183, 996–1012 (2020).
+28. Tan, A. T. et al. Early induction of functional SARS-CoV-2-specific T cells associates
+with rapid viral clearance and mild disease in COVID-19 patients. Cell Rep. 34, 108728
+Online content (2021).
+29. Choi, S. J. et al. T cell epitopes in SARS-CoV-2 proteins are substantially conserved in the
+Any methods, additional references, Nature Portfolio reporting summa-
+Omicron variant. Cell. Mol. Immunol. 19, 447–448 (2022).
+ries, source data, extended data, supplementary information, acknowl- 30. Moss, P. The T cell immune response against SARS-CoV-2. Nat. Immunol. 23, 186–193
+edgements, peer review information; details of author contributions (2022).
+31. Poland, G. A., Ovsyannikova, I. G. & Kennedy, R. B. SARS-CoV-2 immunity: review and
+and competing interests; and statements of data and code availability
+applications to phase 3 vaccine candidates. Lancet 396, 1595–1606 (2020).
+are available at https://doi.org/10.1038/s41586-024-08477-8. 32. Torabi, F. et al. Wastewater-based surveillance models for COVID-19: a focused review on
+spatio-temporal models. Heliyon 9, e21734 (2023).
+33. McClymont, H. & Hu, W. Weather variability and COVID-19 transmission: a review of
+1. Markov, P. V. et al. The evolution of SARS-CoV-2. Nat. Rev. Microbiol. 21, 361–379 (2023). recent research. Int. J. Environ. Res. Public Health 18, 396 (2021).
+2. Chen, Y. et al. Broadly neutralizing antibodies to SARS-CoV-2 and other human 34. Baker, R. E., Yang, W., Vecchi, G. A., Metcalf, C. J. E. & Grenfell, B. T. Susceptible supply
+coronaviruses. Nat. Rev. Immunol. 23, 189–199 (2023). limits the role of climate in the early SARS-CoV-2 pandemic. Science 369, 315–319
+3. Meijers, M., Ruchnewitz, D., Eberhardt, J., Luksza, M. & Lassig, M. Population immunity (2020).
+predicts evolutionary trajectories of SARS-CoV-2. Cell 186, 5151–5164 (2023). 35. Yang, L. et al. Antigen presentation dynamics shape the antibody response to variants like
+4. Greaney, A. J. et al. Complete mapping of mutations to the SARS-CoV-2 spike receptor- SARS-CoV-2 Omicron after multiple vaccinations with the original strain. Cell Rep. 42,
+binding domain that escape antibody recognition. Cell Host Microbe 29, 44–57 (2021). 112256 (2023).
+5. Cao, Y. et al. Imprinted SARS-CoV-2 humoral immunity induces convergent Omicron RBD 36. Rochman, N. D. et al. Epistasis at the SARS-CoV-2 receptor-binding domain interface and
+evolution. Nature 614, 521–529 (2023). the propitiously boring implications for vaccine escape. mBio 13, e0013522 (2022).
+6. Office for National Statistics. Coronavirus (COVID-19) Infection Survey, UK: 24 March 2023. 37. Moulana, A. et al. Compensatory epistasis maintains ACE2 affinity in SARS-CoV-2
+https://www.ons.gov.uk/peoplepopulationandcommunity/healthandsocialcare/ Omicron BA.1. Nat. Commun. 13, 7011 (2022).
+conditionsanddiseases/bulletins/coronaviruscovid19infectionsurveypilot/24march2023#: 38. Thadani, N. N. et al. Learning from prepandemic data to forecast viral escape. Nature 622,
+~:text=In%20England%2C%20the%20estimated%20number,around%201%20in%20 818–825 (2023).
+40%20people (2023). 39. Ito, J. et al. A protein language model for exploring viral fitness landscapes. Preprint at
+7. World Health Organization. Weekly epidemiological update on COVID-19 - 1 June 2023. bioRxiv https://doi.org/10.1101/2024.03.15.584819 (2024).
+https://www.who.int/publications/m/item/weekly-epidemiological-update-on-covid- 40. Luksza, M. & Lassig, M. A predictive fitness model for influenza. Nature 507, 57–61 (2014).
+19---1-june-2023 (2023). 41. Huddleston, J. et al. Integrating genotypes and phenotypes improves long-term forecasts
+8. Davis, H. E., McCorkell, L., Vogel, J. M. & Topol, E. J. Long COVID: major findings, of seasonal influenza A/H3N2 evolution. Elife 9, e60067 (2020).
+mechanisms and recommendations. Nat. Rev. Microbiol. 21, 133–146 (2023).
+9. World Health Organization. Coronavirus disease (COVID-19) pandemic. https://www.who. Publisher’s note Springer Nature remains neutral with regard to jurisdictional claims in
+int/europe/emergencies/situations/covid-19 (2023). published maps and institutional affiliations.
+10. Jones, J. M. et al. Estimates of SARS-CoV-2 seroprevalence and incidence of primary
+SARS-CoV-2 infections among blood donors, by COVID-19 vaccination status - United Open Access This article is licensed under a Creative Commons Attribution
+States, April 2021-September 2022. Morb. Mortal. Wkly Rep. 72, 601–605 (2023). 4.0 International License, which permits use, sharing, adaptation, distribution
+11. Dejnirattisai, W. et al. SARS-CoV-2 Omicron-B.1.1.529 leads to widespread escape from and reproduction in any medium or format, as long as you give appropriate
+neutralizing antibody responses. Cell 185, 467–484 (2022). credit to the original author(s) and the source, provide a link to the Creative Commons licence,
+12. McCallum, M. et al. Structural basis of SARS-CoV-2 Omicron immune evasion and and indicate if changes were made. The images or other third party material in this article are
+receptor engagement. Science 375, 864–868 (2022). included in the article’s Creative Commons licence, unless indicated otherwise in a credit line
+13. Nutalai, R. et al. Potent cross-reactive antibodies following Omicron breakthrough in to the material. If material is not included in the article’s Creative Commons licence and your
+vaccinees. Cell 185, 2116–2131 (2022). intended use is not permitted by statutory regulation or exceeds the permitted use, you will
+14. Lyngse, F. P. et al. Household transmission of SARS-CoV-2 Omicron variant of concern need to obtain permission directly from the copyright holder. To view a copy of this licence,
+subvariants BA.1 and BA.2 in Denmark. Nat. Commun. 13, 5760 (2022). visit http://creativecommons.org/licenses/by/4.0/.
+15. Hale, T. et al. A global panel database of pandemic policies (Oxford COVID-19 Government
+Response Tracker). Nat. Hum. Behav. 5, 529–538 (2021). © The Author(s) 2025
+204 | Nature | Vol 639 | 6 March 2025
+
+============================================================
+PAGE 10
+============================================================
+Methods FR
+x,y
+(ϑ)=mean(FR
+x,y
+(a):a∈ϑ),
+DMS data for all epitope classes ϑ in Α (Fig. 2a).
+We used all DMS data5,17 available on 13 February 2023 to assess the As a proof of concept, we compared DMS-derived FR
+x,y
+(ϑ) using the
+phenotype (escape from neutralizing antibodies) of each SARS-CoV-2 calculations above with fold resistance values obtained from virus
+variant. DMS measures, in a yeast-display assay, how much a mutated neutralization assays (reported in ref. 42) for antibodies targeting all
+site s in the RBD affects the binding of antibodies elicited by a variant epitope classes Α defined above. As can be seen in Extended Data Fig. 1d,
+that is not mutated at site s. We utilized data from 836 antibodies that we observed a strong and significant positive correlation between the
+were classified into 12 distinct epitope classes17,18 (see below) and aggre- DMS-derived FR
+x,y
+(ϑ) and those obtained by neutralization assays and
+gated all values on site level by their mean, yielding ‘escape fractions’ reasonable agreement for polyclonal sera (Extended Data Fig. 1e–g).
+to antibody a for each mutated site ef (values were bounded at 0.99). As the DMS experiments were generated only for RBD-targeting anti-
+s,a
+Escape fractions denote a proxy for quantifying the probability that bodies, no escape data were available to quantify the fold resistance of
+an antibody does not bind an RBD that contains an alteration at site s. NTD-targeting antibodies. To overcome this limitation, we included an
+Thus, the numerical value depends on the antibody potency, and hence additional class of NTD-targeting antibodies targeting three antigenic
+we aimed to convert these values to ‘fold resistances’ (fold change in super-sites43: spike amino acid positions 14–20, 140–158 and 245–264.
+antibody potency; see also Extended Data Fig. 1a–c). Assuming that Consequently, we assigned alterations in the antigenic super-sites fold
+mutational effects of site s on the binding affinity are independent, the resistance values of 10, which is in range with corresponding ELISA
+binding probability of an antibody elicited by a variant x to a variant experiments43. However, the model can be updated if comprehensive
+y can be expressed as DMS data for the NTD domain become available44.
+Assuming independence between mutational effects, the total fold
+b a (x,y)= ∏ (1−ef s,a ), (1) resistance of a variant y to binding of an NTD-targeting antibody elicited
+s∈Ω(x,y) by a variant x was computed as:
+in which ef s,a is the normalized escape fraction of mutated site s with FR x,y (NTD)=10Ω(x,y),
+respect to antibody a, and Ω(x,y) denotes the set of RBD sites that
+distinguish variants x and y (ref. 17). Using classical pharmacodynamic in which |Ω(x, y)| denotes the number of mutational differences between
+approaches, we then model the binding probability as variants x and y in the antigenic super-site of the NTD.
+c
+b a (x,y)= FR (a)⋅IC a (a)+c , (2) Variant cross-neutralization probability
+x,y 50(DMS) a We assumed that a virus is neutralized if at least one antibody is bound
+to its surface (either at the RBD or NTD of the spike protein). Here, we
+in which FR (a) denotes the fold resistance of variant y to an antibody collectively consider all antibodies from the same epitope class as they
+x,y
+a elicited by variant x. The parameter IC (a) corresponds to the compete for the same binding site. By assuming binding independ-
+50(DMS)
+half-maximal inhibitory concentration (that is, ‘potency’) of the anti- ence between epitope classes, the neutralization probability can be
+body against the antibody-eliciting variant, which was extracted from computed as:
+the DMS dataset. Notably, c = 400 μg ml−1 was the antibody concentra-
+a
+tion at which the DMS experiment was conducted4,18. Combining equa- P Neut (t,x,y)=1− ∏ (1−b ϑ (t,x,y)),
+tions (1) and (2) yields: ϑ∈Ax∖y
+with b(t,x,y) denoting the probability that an antibody of epitope
+FR x,y (a)= IC 50(D c M a S) (a)    b a (x 1 ,y) −1   . class ϑ ϑ in Α ∪ (NTD) binds to the virus with
+c(t)
+b(t,x,y)= ϑ ,
+As already evident from Extended Data Fig. 1a–c, DMS estimates of ϑ FR x,y (ϑ)⋅IC 50(x) (ϑ)+c ϑ (t)
+ef , as well as the corresponding FR (a), can become unreliable
+s,a x,y
+depending on antibody concentrations and antibody potency IC (a), in which c(t) is the antibody’s concentration in an individual at time t,
+50(x) ϑ
+falsely predicting hyper-susceptibility (FR
+x,y
+(a) < 1). We enforce that IC
+50(x)
+(ϑ) is the half-maximal inhibitory antibody concentration
+FR
+x,y
+(a) ≥1 to avoid such artefacts. against the variant that elicited the antibody. FR
+x,y
+(ϑ) is the fold resist-
+ance of variant y to binding of antibodies of epitope class ϑ, elicited
+Epitope classes by variant x.
+On the basis of the similarity of antibody profiles in DMS data, anti-
+bodies were previously classified into 12 epitope classes (A, B, C, D1, Antibody potency
+D2, E1, E2.1, E2.2, E3, F1, F2, F3)18 (Supplementary Tables 1 and 2). As we Next, we quantified IC
+50(x)
+(ϑ) for each epitope class. As the DMS data
+encountered more than 30% missing values for epitope classes E2.1 were derived from yeast-display RBD mutant libraries, absolute anti-
+and E2.2, we merged them with E1 into a new class (E12), as they bind body potencies may not directly translate to a clinical setting. However,
+to similar regions, including amino acid site R346 (ref. 42). Finally, we the ranking of antibody potencies may be preserved. Consequently,
+retrieved a matrix of 10 epitope classes Α = (A, B, C, D1, D2, E12, E3, F1, we estimated the relative potency D(ϑ) from the DMS data:
+F2, F3) for 179 RBD sites. This classification indicates that antibodies
+belonging to the same class bind to overlapping epitopes, and there
+D(ϑ)=
+IC 50(DMS) (ϑ)
+,
+is little overlap between epitope classes (Fig. 2a). Consequently, we 1 ∑ IC (ζ)
+assumed that antibodies within the same epitope class would be simi- A ζ∈A 50(DMS)
+larly affected by RBD alterations, whereas phenotypic changes between
+epitope classes may vary considerably. in which ϑ∈A, and IC
+50(DMS)
+(ϑ) denotes the average potency of all
+We then quantified the fold resistance associated with each epitope antibodies belonging to epitope class ϑ. Epitope-class-specific clini-
+class as the average fold resistance of all antibodies belonging to cal antibody potency IC
+50(x)
+(ϑ) was then inferred using the following
+the class relation:
+
+============================================================
+PAGE 11
+============================================================
+Article
+IC
+50(x)
+(ϑ)=D(ϑ)⋅IC
+50(x)
+,
+SARS-CoV-2 genomic data
+in which IC denotes the IC averaged over all epitope classes. We collected SARS-CoV-2 genomic data from Germany published by
+50(x) 50(x)
+NTD-targeting antibodies were not included in the DMS dataset, and the Robert Koch Institute, including only genomic data from the ‘ran-
+hence we set dom sampling’ strategy, which denotes most of the sequence data. For
+other countries (Australia, Brazil, Canada, Denmark, France, Japan,
+IC 50(x) (NTD)= IC 50(x) . Mexico, South Africa, Sweden, the UK and the USA), we downloaded
+data from GISAID (https://gisaid.org); however, here we could not be
+IC was the only free parameter in the model, which we esti- sure that the data are representative (randomly sampled), as anyone
+50(x)
+mated by fitting our model to (Wuhan-Hu-1-strain) vaccine efficacy can upload SARS-CoV-2 data to GISAID. A dataset summary is given in
+(VE) data against the Delta lineage (B.1.617.2) present between 4 July Supplementary Table 6.
+2021 and 31 December 2021 (Fig. 2d; genomic profile in Supplemen-
+tary Table 3). Variant proportions and spike pseudo-groups
+We considered interindividual differences in antibody pharma- If pangolin lineage information was absent in the data, lineage informa-
+cokinetics (see below), implemented as combinations of the param- tion was assigned using established methods54,55. Alteration profiles
+eters t (time of maximal antibody concentration) and t (antibody for all sequences were extracted using covSonar. For each lineage, we
+max half
+half-life). For parameter estimation, we first estimated optimal drug collected all ‘characteristic’ spike amino acid changes in the RBD (amino
+potencies IC (t , t ) for each t , t combination in a 5 × 15 acid position 331–541) and the NTD antigenic super-sites regions (amino
+50(x) max half max half
+grid (ranges below) and then averaged over these 75 estimates. Param- acid positions 14–20, 141–158 and 245–264) for subsequent analyses.
+eter estimation was performed using scipy.optimize.root, applying In our work, ‘characteristic’ implied that an amino acid change was
+the Levenberg–Marquardt method to solve the ordinary least-square present in at least 75% of all sequences from that lineage. The ‘antigenic
+problem. profile’ for each lineage was then determined on the basis of the set of
+unique alterations within the NTD and RBD regions. Differences
+IC50
+a
+(x
+r
+)
+g
+(t
+m
+ma
+i
+x
+n
+,thalf)
+∑
+t
+P
+−
+N
+V
+eu
+E
+t
+(
+(
+t
+t
+,
+,
+W
+W
+u
+u
+h
+h
+a
+a
+n
+n
+-
+-
+H
+H
+u
+u
+-
+-
+1
+1
+,
+,
+D
+D
+e
+e
+l
+l
+t
+t
+a
+a
+)
+an
+2
+dIC 50(x) (t max ,t half )), b
+p
+e
+ro
+tw
+fi
+e
+le
+e
+s
+n
+. C
+lin
+lu
+e
+s
+a
+t
+g
+e
+e
+r
+s
+in
+w
+g
+e
+l
+r
+i
+e
+n e
+d
+a
+e
+g
+fi
+e
+n
+s
+e
+w
+d
+i
+a
+th
+s t
+i
+h
+d
+e
+e n
+se
+ti
+t
+c
+d
+a
+i
+l
+f
+‘
+f
+a
+e
+n
+re
+ti
+n
+g
+c
+e
+e
+n
+b
+ic
+e
+p
+tw
+ro
+e
+f
+e
+i
+n
+le
+a
+s
+l
+’
+t
+y
+e
+i
+r
+e
+a
+l
+t
+d
+io
+ed
+n
+spike pseudo-groups with distinct genomic profiles in the RBD and
+NTD region of the spike protein. On the basis of the genomic profiles
+in which VE(t, Wuhan-Hu-1, Delta) denotes the vaccine efficacy against and their clustering into spike pseudo-groups, we computed pseudo-
+the Delta strain t days after antigen exposure with the Wuhan-Hu-1 group frequencies π x (t) for all x ∈ X in the entire observation horizon.
+strain. Here, we assumed that VE = infection risk reduction ≈ P . The frequencies were computed such that there were at least 100
+Neut
+As a proof of concept, we then tested our predictions with Wuhan- sequences per time step, and daily lineage frequencies were computed
+Hu-1-strain VE data against Omicron infection (Fig. 2d; genomic profile by using linear interpolation between time steps. Furthermore, we
+in Supplementary Table 3). Utilized VE data include those from all filtered out spike pseudo-groups that never reached levels of >1%
+studies in which Wuhan-Hu-1-strain vaccines were tested and which frequency to reduce noise from sequencing errors. Data files with lin-
+were computed on the basis of hazard ratios or rate of confirmed eage and pseudo-group frequencies and alteration profiles for all
+infection (Supplementary Tables 4 and 5). countries are available via GitHub at https://github.com/KleistLab/
+VASIL (a summary is given in Supplementary Table 6).
+Antibody pharmacokinetics
+To determine the duration of sterilizing immunity against any variant Genome-based reconstruction of infection timeline
+y, we accounted for antibody pharmacokinetics (PK) after antigen Unfortunately, the infection timeline cannot be reconstructed from
+exposure to variant x (by means of infection or vaccination). Pharma- reported cases, as test coverage and reporting of SARS-CoV-2 became
+cokinetics were considered using a classical, descriptive linear model increasingly unreliable. To overcome this data limitation, we recently
+with an analytical solution developed the genome-based incidence estimator, GInPipe22. This
+computational pipeline reconstructs the infection timeline solely from
+e−ket−e−kat
+time-stamped viral sequences. Owing to the short infectious phase
+c(t)= ,
+e−ketmax−e−katmax of SARS-CoV-2 (ref. 56), a limited amount of intra-patient evolution is
+typically observed before an infection is passed on. This implies the
+in which t denotes the time after antigen exposure and c(t) denotes the existence of an ‘evolutionary signal’ ϕ that relates haplotype diversity
+normalized (fraction of maximum) concentrations of the antibody. The and the number of alterations present in a temporal collection of viral
+parameters k and k (elimination and ‘absorption’ parameters in clas- sequences to the number of infections (see ref. 22 for details). We con-
+e a
+sical PK models) were related to known quantities through established firmed previously that this evolutionary signal is proportional to the
+PK relations; that is, actual number of infected individuals I(t) ≈ cϕ(t) at time t.
+Although GInPipe works quite robustly when sequencing efforts
+ln (ka) change over time, extreme changes may cause biases22. For the USA and
+k =
+ln(s)
+, t =
+ke
+. the UK, we observed major drops in the number of available sequences
+e t max k −k
+half a e (≈10-fold after 2022), and henceforth downsampled the number of viral
+sequences to 6,000 and 2,500 per day, respectively, which corresponds
+In our simulations, we considered identical PK for antibodies of the to the maximum number of sequences after the drop in sequencing
+different epitope classes. Utilized parameters (t , t ) were extracted efforts (Extended Data Fig. 5).
+max half
+from the literature: the time of maximal antibody concentrations In the pipeline, sequences are pooled according to their collection
+(t ) varied between 14 and 28 days after antigen exposure26,45,46, and date, such that ‘bins’ b comprise either the same number of sequences
+max
+the half-life (t ) ranged between 25 and 69 days19,47–53. For simulation, n or span the same number of days ∆d. We chose time spans ∆d = 7,
+half b b b
+we used different combinations of (t , t ) in a 5 × 15 grid within a 10 and 14 days and bin sizes of n = 2% and 5% of all sequences, as well as
+max half b
+range of t within 14 to 28 days and t within 25 to 69 days and plot- the average weekly number of sequences for each particular country.
+max half
+ted the range of predictions (minimum, maximum). Incidence correlates ϕ were filtered out if the time span of a bin was
+b
+
+============================================================
+PAGE 12
+============================================================
+smaller than 3 days, or if a bin comprised fewer than 50 sequences. load trajectories or reliable estimates from large citizen science pro-
+We allowed a bin to span at most 21 days (data-rich setting) or as many jects. With regard to GInPipe’s output, we showed in Extended Data
+days as necessary to comprise the minimal number of sequences Figs. 3 and 4 and in ref. 22 that I(t) ≈ cϕ(t), which allows us to use ϕ(s)
+(data-poor settings). Bin-wise ϕ estimates were smoothed using ker- instead of the number of infected individuals I(s) when computing
+b
+nel smoothing with a bandwidth of 14. GInPipe-estimated incidence E[Immune
+x
+(t)], as performed in Figs. 3–5. To compute E[S
+x
+(t)], we can
+correlates are depicted in Extended Data Fig. 5 for all investigated write Pop=k⋅∫I(s)ds≈k⋅c⋅∫ϕ(s)ds, for which k > 0 is a scaling factor
+countries. (for example, k−1 = 2 implies that every individual got infected twice,
+To confirm the validity of GInPipe-estimated incidences, we com- on average, over the time horizon of interest). When reconstructing
+pared our predictions with other unbiased incidence measures for actual incidences for Germany and the UK, we found that k ≈ 1 for the
+Germany (citizen science and wastewater data; Extended Data Fig. 3) length of the time horizon (Extended Data Fig. 9). k is a modelling choice
+and with a UK dataset from the representative COVID-19 Infection Sur- and any mis-estimation of k affects only the scaling of γ(t) (Extended
+y
+vey of the Office for National Statistics (ONS)6, using the percentage of Data Fig. 10). Qualitative results (inflection points γ = 0; variant ‘growth’
+y
+infected individuals in the UK from the ONS study as the ground truth γ > 0; variant ‘decline’ γ < 0) remain unaffected. The interpretation of
+y y
+(March 2021–March 2023; Extended Data Fig. 4). this ‘scaling’ is straightforward: if one overestimates the number of
+The percentage of PCR-positive individuals from GInPipe at the time individuals that became infected, one under-predicts the number of
+point of interest was then computed using a rolling sum over 10 days56, susceptible individuals and thus infers stronger competition among
+and normalized with the ratio of the population size and the sum of variants, which is expressed in overestimation of the amplitude of γ(t)
+y
+infected people in the respective time horizon according to the ONS. by some constant ξ > 1.
+For the reported cases, the rolling sum over 10 days was normalized
+by the population size of the UK. Relation of γ y to variant dynamics
+In a discrete-time quasi-species model57, the theoretical variant fre-
+Expected sterilizing immunity against variant y quencies p∈[0,1]|X| are given by
+The estimation of cross-neutralization probability P enabled us to
+Neut
+p(t+1)=Q⋅F(t)⋅p(t),
+estimate the expected number of individuals being immune against
+infection with a variant y for a given time point t by taking the infection
+history before time t into account. The expected number of individuals for which Q∈R |X|×|X| denotes a transition matrix between different
+immune to infection with strain y is given by variants, which we set to the identity matrix Q = Id, ignoring any muta-
+tional transitions from one variant to another. Fitness values of any
+t
+variant y, relative to the population average f (t)= ∑ p (t)⋅f (t) are
+E[Immune
+y
+(t)]= ∑ ∫ π
+x
+(s)⋅I(s)⋅P
+Neut
+(t−s,x,y)ds,
+contained in matrix F(t)=diag([…, f (t)/f (t), …]).
+x
+Co
+x
+nseq
+x
+uently,
+x∈X 0 for p(t) > 0, we get y
+y
+p(t+1)
+in which X denotes the set of all variants present within the time hori- y
+−1=γ(t),
+zon of interest, P (t − s, x, y) denotes the probability that an infection p(t) y
+Neut y
+with strain x, that occurred t − s days ago cross-neutralizes a variant y.
+In the equation above, π(s) denotes the proportion of variant x at day if fitness is determined by population immunity.
+x
+s < t, derived from the molecular surveillance, and I(t) denotes the
+number of infected individuals at some previous time point s. The Modelling booster vaccinations in Germany
+expected number of susceptible individuals to a variant y at time t can As the vaccination timeline contains the number of individuals that
+then be calculated as E[S
+y
+(t)]=Pop−E[Immune
+y
+(t)], in which Pop were vaccinated, we first reconstructed actual infection numbers for
+denotes the total population size. The variable I(s) is typically not avail- Germany using GInPipe22: we inferred the time-dependent case ascer-
+able, but can be replaced by incidence correlates ϕ(s) = I(s)/c (see tainment probabilities P (t) ≤ 1 (that is, the probability of an infection
+rep
+below). being reported):
+Variant dynamics I rep (t) I rep (t) I rep (t)
+To estimate whether an emerging variant may successfully out-compete
+P
+rep
+(t)=
+I(t)
+≈
+ϕ ⋅c
+⇔P
+rep
+⋅c≈
+ϕ
+,
+t t
+existing variants, we estimated the relative growth advantage of a vari-
+ant γ(t): for which I (t) ≤ I(t) denotes the daily reported infections (weekly
+y rep
+cases/7). We smoothed reported cases I (t) with a bandwidth
+rep
+α yE[S
+y
+(t)]−∑
+x∈X
+π
+x
+(t)⋅α
+x
+⋅E[S
+x
+(t)]
+of 14.
+γ(t)= ,
+y ∑ x∈X π x (t)⋅α x ⋅E[S x (t)] Last, we normalized the case ascertainment probabilities P ∼ rep (t) at
+maximum to be able to estimate the minimum number of infections
+in which the denominator denotes the average growth rate across I (t)
+min
+all variants existing at time t and for which α > 0 denotes a variant’s
+x
+P (t)
+intrinsic (antibody-independent) relative transmission fitness, which ∼ rep
+P (t)≤P (t)= .
+we assumed to be nearly identical for all circulating variants α x ≈ α, rep rep max t (P rep (t))
+implying that variant dynamics are dominated by infection history and
+immune dynamics. We ignored low-abundance variants with π(t) < 1% The minimum number of infections is then calculated as
+x
+and renormalized accordingly. We computed the frequency-weighted
+a se v s e r ( a a g s e in γ d z ( i t c ) a , w te h d e i n n e t v h e e r r d e if s f p e e re c n ti t v v e a g r r ia a n p t h s i w cs e ) r . e combined during analy- I(t)≥I min (t)= P I ∼ r r e e p p ( ( t t ) ) =ϕ t m t ax    I re ϕ p t (t)    ≥I rep (t).
+Replacing infection numbers with incidence correlates The impact of infections on the immune landscape was then mod-
+As infection numbers I(t) are typically unreliable, our method can elled as outlined above by setting I(t) ≈ I (t). To model the impact of
+min
+utilize any incidence correlate, such as GInPipe’s ϕ(t), wastewater virus booster vaccinations in Germany (Extended Data Fig. 7), we added
+
+============================================================
+PAGE 13
+============================================================
+Article
+exposure to either the Wuhan-Hu-1-variant antigen or the BA.4 + BA.5- 51. Dan, J. M. et al. Immunological memory to SARS-CoV-2 assessed for up to 8 months after
+variant antigen corresponding to the timeline of vaccination (https:// infection. Science 371, eabf4063 (2021).
+52. Wheatley, A. K. et al. Evolution of immune responses to SARS-CoV-2 in mild-moderate
+impfdashboard.de/en/) to the infection timeline and computed the COVID-19. Nat. Commun. 12, 1162 (2021).
+relative fitness γ(t) on this basis. Note that this reconstruction of 53. Van Elslande, J., Gruwier, L., Godderis, L. & Vermeersch, P. Estimated half-life of SARS-
+y
+CoV-2 anti-spike antibodies more than double the half-life of anti-nucleocapsid antibodies
+actual infection numbers can become unstable, as it is normalized to
+in healthcare workers. Clin. Infect. Dis. 73, 2366–2368 (2021).
+an extreme point (the maximum) and therefore warrants post-analysis 54. Rambaut, A. et al. A dynamic nomenclature proposal for SARS-CoV-2 lineages to assist
+inspection. Moreover, it requires the use of case reporting data, which genomic epidemiology. Nat. Microbiol. 5, 1403–1407 (2020).
+55. O’Toole, A. et al. Assignment of epidemiological lineages in an emerging pandemic using
+largely ceased by the end of 2023.
+the pangolin tool. Virus Evol. 7, veab064 (2021).
+56. van der Toorn, W. et al. An intra-host SARS-CoV-2 dynamics model to assess testing and
+Reporting summary quarantine strategies for incoming travelers, contact management, and de-isolation.
+Patterns 2, 100262 (2021).
+Further information on research design is available in the Nature Port-
+57. Bratus, A. S., Novozhilov, A. S. & Semenov, Y. S. in Advanced Mathematical Methods
+folio Reporting Summary linked to this article. in Biosciences and Applications (eds Berezovskaya, F. & Toni, B.) 27–51 (Springer,
+2019).
+58. Robert Koch Institute. Random samples of SARS-CoV-2 sequences for Germany. Zenodo
+https://zenodo.org/records/13987397 (2024).
+Data availability
+59. Robert Koch Institut, Fachgebiet 32. Abwassersurveillance AMELAG. Zenodo https://
+The DMS data used in this study can be accessed via GitHub at https:// zenodo.org/records/12704658 (2024).
+60. Raharinirina, N. A. et al. SARS-CoV-2 evolution on a dynamic immune landscape. Zenodo
+github.com/jbloomlab/SARS2_RBD_Ab_escape_maps/blob/main/
+https://doi.org/10.5281/zenodo.8349295 (2024).
+processed_data/escape_data.csv and a processed version is avail- 61. Bennett, L., Melchers, B. & Proppe, B. Curta: a general-purpose high-performance computer
+able via GitHub at https://github.com/KleistLab/VASIL/blob/main/ at ZEDAT, Freie Universität Berlin. FU Refubium http://dx.doi.org/10.17169/refubium-26754
+(2020).
+ByCountry/Australia/results/epitope_data/dms_per_ab_per_site.csv.
+62. Yisimayi, A. et al. Repeated Omicron exposures override ancestral SARS-CoV-2 immune
+For the evaluation of the German SARS-CoV-2 outbreak, we used imprinting. Nature 625, 148–156 (2024).
+genomic data provided via the German Sequence Data Hub (DESH) to 63. Wang, P. et al. Antibody resistance of SARS-CoV-2 variants B.1.351 and B.1.1.7. Nature 593,
+130–135 (2021).
+the Robert Koch Institute, available via GitHub at https://github.com/
+64. Uriu, K. et al. Neutralization of the SARS-CoV-2 Mu variant by convalescent and vaccine
+robert-koch-institut/SARS-CoV-2-Sequenzdaten_aus_Deutschland, and serum. N. Engl. J. Med. 385, 2397–2399 (2021).
+via Zenodo at https://zenodo.org/records/13987397 (ref. 58; details for 65. Planas, D. et al. Reduced sensitivity of SARS-CoV-2 variant Delta to antibody neutralization.
+Nature 596, 276–280 (2021).
+the subset in Supplementary Table 6). Wastewater surveillance data for
+66. Mlcochova, P. et al. SARS-CoV-2 B.1.617.2 Delta variant replication and immune evasion.
+Germany are provided by the Robert Koch Institute via GitHub at https:// Nature 599, 114–119 (2021).
+github.com/robert-koch-institut/Abwassersurveillance_AMELAG and 67. Liu, Y. et al. BNT162b2-elicited neutralization against new SARS-CoV-2 spike variants.
+N. Engl. J. Med. 385, 472–474 (2021).
+can be accessed via Zenodo at https://zenodo.org/records/12704658
+68. Garcia-Beltran, W. F. et al. Multiple SARS-CoV-2 variants escape neutralization by
+(ref. 59). Reported case numbers for Germany were taken from GitHub vaccine-induced humoral immunity. Cell 184, 2372–2383 (2021).
+at https://github.com/robert-koch-institut/COVID-19_7-Tage-Inzidenz_ 69. Bates, T. A. et al. Neutralization of SARS-CoV-2 variants by convalescent and BNT162b2
+vaccinated serum. Nat. Commun. 12, 5135 (2021).
+in_Deutschland. The evaluation of other countries in this study was
+70. Rossler, A., Riepler, L., Bante, D., von Laer, D. & Kimpel, J. SARS-CoV-2 Omicron variant
+based on genomic data associated with 5,617,986 SARS-CoV-2 sequences neutralization in serum from vaccinated and convalescent persons. N. Engl. J. Med. 386,
+available on GISAID (https://gisaid.org/) and accessible at https://doi. 698–700 (2022).
+71. Planas, D. et al. Considerable escape of SARS-CoV-2 Omicron to antibody neutralization.
+org/10.55876/gis8.241022rp (Supplementary Note 1 and Supplemen-
+Nature 602, 671–675 (2022).
+tary Table 6). Source data are provided with this paper. 72. Liu, C. et al. Reduced neutralization of SARS-CoV-2 B.1.617 by vaccine and convalescent
+serum. Cell 184, 4220–4236 (2021).
+73. Cameroni, E. et al. Broadly neutralizing antibodies overcome SARS-CoV-2 Omicron
+antigenic shift. Nature 602, 664–670 (2022).
+Code availability
+74. Loenenbach, A. et al. Participatory, virologic, and wastewater surveillance data to assess
+Codes were written in Python 3.11.3 and R version 4.2.3 (15 March 2023) underestimation of COVID-19 incidence, Germany, 2020-2024. Emerg. Infect. Dis. 30,
+1939–1943 (2024).
+and are available via GitHub at https://github.com/KleistLab/VASIL and 75. Oh, D. Y. et al. Advancing precision vaccinology by molecular and genomic surveillance
+via Zenodo at https://doi.org/10.5281/zenodo.8349295 (ref. 60). Simula- of severe acute respiratory syndrome coronavirus 2 in Germany, 2021. Clin. Infect. Dis. 75,
+tions were performed on the high-performance computing cluster at S110–S120 (2022).
+76. Backer, J. A. et al. Shorter serial intervals in SARS-CoV-2 cases with Omicron BA.1 variant
+ZEDAT, Freie Universität Berlin61. The pipeline for the genome-based compared with Delta variant, the Netherlands, 13 to 26 December 2021. Euro Surveill. 27,
+incidence estimation (GInPipe) is available via GitHub at https://github. 2200042 (2022).
+com/KleistLab/GInPipe. Alteration profiles for all sequences were 77. Galmiche, S. et al. SARS-CoV-2 incubation period across variants of concern, individual
+factors, and circumstances of infection in France: a case series analysis from the ComCor
+extracted using covSonar, version 1.1.11, which is available via GitHub study. Lancet Microbe 4, e409–e417 (2023).
+at https://github.com/rki-mf1/covsonar. 78. Ito, K., Piantham, C. & Nishiura, H. Relative instantaneous reproduction number of
+Omicron SARS-CoV-2 variant with respect to the Delta variant in Denmark. J. Med. Virol.
+94, 2265–2268 (2022).
+79. Khandia, R. et al. Emergence of SARS-CoV-2 Omicron (B.1.1.529) variant, salient features,
+42. Cao, Y. et al. BA.2.12.1, BA.4 and BA.5 escape antibodies elicited by Omicron infection. high global health concerns and strategies to counter it amid ongoing COVID-19 pandemic.
+Nature 608, 593–602 (2022). Environ. Res. 209, 112816 (2022).
+43. McCallum, M. et al. N-terminal domain antigenic mapping reveals a site of vulnerability 80. Our World in Data. Coronavirus (COVID-19) Cases. https://covid.ourworldindata.org/data/
+for SARS-CoV-2. Cell 184, 2332–2347 (2021). owid-covid-data.csv (2024).
+44. Dadonaite, B. et al. A pseudovirus system enables deep mutational scanning of the full
+SARS-CoV-2 spike. Cell 186, 1263–1278 (2023).
+45. Lumley, S. F. et al. The duration, dynamics, and determinants of severe acute respiratory
+syndrome coronavirus 2 (SARS-CoV-2) antibody responses in individual healthcare Acknowledgements We thank the German Electronic Sequence Data Hub (DESH) and all
+workers. Clin. Infect. Dis. 73, e699–e709 (2021). of its data contributors (that is, the authors from the originating laboratories responsible for
+46. Arkhipova-Jenkins, I. et al. Antibody response after SARS-CoV-2 infection and implications obtaining the specimens and the submitting laboratories in which genetic sequence data
+for immunity: a rapid living review. Ann. Intern. Med. 174, 811–821 (2021). were generated and shared); the Sequencing Core Facility of the Genome Competence
+47. Bayart, J. L. et al. Waning of IgG, total and neutralizing antibodies 6 months post-vaccination Center (MF1) at Robert Koch Institute for sequencing services; all laboratories contributing
+with BNT162b2 in healthcare workers. Vaccines 9, 1092 (2021). to the German SARS-CoV-2 surveillance; and all international laboratories for contributing
+48. Barnes, T. W. et al. Determination of neutralising anti-SARS-CoV-2 antibody half-life in SARS-CoV-2 sequences to the GISAID EpiCoV database. We acknowledge high-performance
+COVID-19 convalescent donors. Clin. Immunol. 232, 108871 (2021). computing services provided through ZEDAT at the FU Berlin and at the Robert Koch Institute.
+49. Xue, J. H. et al. Anti-receptor-binding domain immunoglobulin G antibody as a predictor D.B. and M.v.K. acknowledge funding from the German Ministry for Science and Education
+of seropositivity for anti-SARS-CoV-2 neutralizing antibody. Arch. Pathol. Lab. Med. 146, (BMBF), grant number 01KI2016. M.R.S. was supported by funds from the Ministry for
+814–821 (2022). Economic Affairs and Climate action (BMWK), Daten- und KI gestütztes Frühwarnsystem zur
+50. Widge, A. T. et al. Durability of responses after SARS-CoV-2 mRNA-1273 vaccination. N. Engl. Stabilisierung der deutschen Wirtschaft, with grant number 01MK21009H, and N.A.R., N.G.,
+J. Med. 384, 80–82 (2021). C.S. and M.v.K. acknowledge funding by the Deutsche Forschungsgemeinschaft (DFG,
+
+============================================================
+PAGE 14
+============================================================
+German Research Foundation) under Germany’s Excellence Strategy – The Berlin Mathematics Funding Open access funding provided by Robert Koch-Institut.
+Research Center MATH+ (EXC-2046/1, project ID: 390685689). S.F. and T.W acknowledge
+funding through the European Center for Disease Prevention and Control, grant number Competing interests The authors declare no competing interests.
+2021/008 ECD.122222, and T.W. acknowledges funding through grant D82015 by the German
+Ministry of Health (BMG). The funders had no role in designing the research or the decision to Additional information
+publish. Supplementary information The online version contains supplementary material available at
+https://doi.org/10.1038/s41586-024-08477-8.
+Author contributions Conceptualization: D.-Y.O. and M.v.K.; methodology: N.A.R., N.G., D.B., Correspondence and requests for materials should be addressed to Max von Kleist.
+M.R.S., C.M., C.S. and M.v.K.; investigation: N.A.R., N.G., D.B., M.R.S. and S.P.; writing original Peer review information Nature thanks the anonymous reviewers for their contribution to the
+draft: N.A.R., N.G., D.B., M.R.S., M.B., M.H., S.P. and M.v.K.; funding acquisition: S.F., T.W. and peer review of this work.
+M.v.K.; supervision: R.D., T.W., M.H. and M.v.K. Reprints and permissions information is available at http://www.nature.com/reprints.
+
+============================================================
+PAGE 15
+============================================================
+Article
+Extended Data Fig. 1 | Utilization of DMS data and comparison of DMS- bigger escape fraction, while the phenotypic effect FR(a, s) of the mutation s
+derived fold resistances with titer changes from mono- and polyclonal is quantitatively identical. To avoid these artifacts, we calculated FR(a, s) from
+sera. a. Theoretical binding curve of an antibody a to a wild-type epitope of the original DMS data. d. Comparison between DMS-derived fold resistances
+SARS-CoV-2 (black line) and corresponding binding curve to an epitope that is FR and fold resistances derived from neutralization assays (mono-clonal).
+x,y
+mutated at site s (red line). The black dot and red circle mark the concentrations Distinct markers show the epitope classes and distinct colors the Spike-
+(x-axis) where the binding is half maximal (y-axis) for the wild type IC50 (a) pseudo-groups. e-g. Comparison between DMS-derived changes in
+DMS
+and mutant virus IC50 (a,s) respectively. The ‘fold resistance’ (red-black neutralization and neutralization titer changes (polyclonal sera). Geometric
+DMS
+dashed line) denotes the shift in the IC50, such that IC50 (a,s) = FR(a, s) · mean change in neutralization titers for Alpha (e.), Delta (f.) and BA.2 (g.) after
+DMS
+IC50 (a). The red square marks the DMS-measured unbound fraction (escape exposure to the Wuhan antigen are highlighted by dots (± standard deviation),
+DMS
+fraction ef(s, a)) and the upward-pointing grey arrow the concentration at whereas DMS-based model predictions are shown as a blue vertical line
+which the DMS experiment was conducted. Both, IC50 (a), ef(s, a) were and were computed as outlined in17,62. Raw data on neutralization titer
+DMS
+measured in the original DMS experiment at an antibody concentration of changes21,63–73. h. Normalized antibody pharmacokinetics after antigen
+400 μg/mL. However, the same DMS experiment, performed with a more- exposure. Parameters and equations given in the Methods section.
+(panel b.) or less (panel c.) potent antibody would yield a smaller, respectively
+
+============================================================
+PAGE 16
+============================================================
+Extended Data Fig. 2 | Spike-pseudo-group dynamics in Germany over the investigated time horizon. For readability we only plot pseudo-groups (groups of
+lineages with identical mutation profiles in the spike protein) that appear at a frequency of > 1%.
+
+============================================================
+PAGE 17
+============================================================
+Article
+Extended Data Fig. 3 | Integration of wastewater virus loads with GInPipe’s vs. reported cases) on a log10 scale. The red line shows under-reporting
+incidence estimates and validation for Germany. The upper panel shows estimates for GInPipe for the time with sufficient sequencing data and
+the number of viral sequences per day in Germany (black bars = raw data, black continuing in blue with the scaled wastewater incidence estimates. The light
+line = 7-days rolling average). The middle panel depicts the estimation of the blue and orange points, together with the respective smoothed lines, show the
+GInPipe-based minimal number of SARS-CoV-2 infected individuals per day in under-reporting factor estimated with GrippeWeb (citizen-science) data using
+Germany (red area; description in the Methods) and viral load measurements the virologic positivity rate approach (GW VPR) and the self-reported testing
+from wastewater, linearly scaled to the GInPipe-based incidence (blue area). approach (GW SR)74. The vertical red line indicates the chosen cut date at 01.
+The daily reported cases are given by the black and grey dashed line. The lower April 23, when the available sequence data declined drastically from (> 10,000
+panel shows the estimated under-reporting factor (ratio of incidence estimate to ≤ 100 sequences/week).
+
+============================================================
+PAGE 18
+============================================================
+Extended Data Fig. 4 | Validation of genome-based incidence estimates, applied to the reporting data and GInPipe’s estimates to approximate
+using data from the UK. a. Average percentage of the population testing PCR-positivity. c. Under-reporting factor calculated as the ratio of the ONS
+positive from the COVID-19 Infection Survey of the Office for National Statistics data and the SARS-CoV-2 positive population fraction using reporting data
+(ONS; ground truth data). Coloured lines depict the percentage for each UK (grey), and GInPipe’s incidence estimate (red). In line with previous work75, we
+constituent country. The black dashed line shows the average PCR-positivity performed separate GInPipe-incidence reconstructions for pre-omicron vs.
+(over all constituent countries) for the UK. b. Estimation of the SARS-CoV-2 omicron sequences (because of different evolutionary signals76–79, which are
+positive population in the UK using ONS data (black line; ground truth), utilized in GInPipe22). The pre-omicron vs. omicron estimates were then scaled
+GInPipe’s estimate (red) scaled to the population (see Methods) and reported and added together to compute total incidence.
+cases (grey), scaled to the population. A right-sided rolling sum of 10 days is
+
+============================================================
+PAGE 19
+============================================================
+Article
+Extended Data Fig. 5 | Incidence reconstruction for all considered countries. The black-grey line shows the reported (smoothed) SARS-CoV-2 cases for the
+For each country, the upper panel shows the output of GInPipe (i.e., incidence respective country, acquired from OWID80. The lower panel shows the number
+correlates ϕ). The dots show the point estimates for each temporal sequence bin, of sequences per day in black bars, together with the cumulative number of
+while the red line depicts the smoothed incidence correlate ϕ (bandwith = 14). sequences as a grey line.
+
+============================================================
+PAGE 20
+============================================================
+Extended Data Fig. 6 | Accuracy of predictions per country and lineage booster-vaccinations on the relative number of susceptibles (relative variant
+(related to Fig. 4) and impact of BA.4/5 boosters. a. Each dot represents the fitness) γ in Germany. Top left: Timeline of bivalent booster vaccine uptake in
+y
+accuracy of a specific lineage and country combination. Accuracy is determined Germany (https://impfdashboard.de/) and average number of susceptibles
+by partitioning the frequency curve πy into days of rising (1) and falling (−1) (averaged with regards to the circulating ‘Spike pseudo-groups’ at the time).
+trends, then comparing these with corresponding predictions γ: If the full Remaining panels: Predicted relative fitness γ for major circulating variants in
+y y
+envelope is positive, the prediction is rising (1) if the full envelope is negative, Germany March 2022–April 2023, without considering vaccinations (green
+the prediction is falling (−1): Days with negligible frequency changes or area) and when considering both the timeline of infection and vaccinations
+undecided predictions (envelopes with both positive and negative values) respectively (red outlines).
+are excluded from the analysis. b. Predicted impact of bivalent (BA4/5)
+
+============================================================
+PAGE 21
+============================================================
+Article
+Extended Data Fig. 7 | Predicted impact of ≥3rd booster-vaccinations regards to the circulating ‘Spike pseudo-groups’ at the time). Predicted relative
+on the relative number of susceptibles (relative variant fitness) γ in fitness γ for major circulating variants in Germany March 2022–April 2023,
+y y
+Germany. Top left: Timeline of booster vaccine uptake in Germany (https:// without considering vaccinations (green area) and when considering both the
+impfdashboard.de/). Top right: Average number of susceptibles (averaged with timeline of infection and vaccinations respectively (red outlines).
+
+============================================================
+PAGE 22
+============================================================
+Extended Data Fig. 8 | Sensitivity of the developed method to diminishing data input. We down-sampled the sequence data to 1% for Germany and
+superimposed model predictions for the relative variant fitness γ using the full dataset (green areas) vs. 1% of the data (orange areas).
+y
+
+============================================================
+PAGE 23
+============================================================
+Article
+Extended Data Fig. 9 | Estimation of the number of infected individuals cumulative sum of the number of infected individuals over time are compared
+in Germany (left, red) and the UK (right, blue). The upper panels show the to the population size of the respective country, denoted by the black dashed
+estimated incidence for Germany with GInPipe and for UK using the ONS survey line. The scaling factor k is given by the ratio of the population size and the sum
+data over a time horizon of 13.5 months (roughly a year). The grey parts of the of infected individuals within the time horizon.
+areas depict the officially reported cases, respectively. In the lower panels, the
+
+============================================================
+PAGE 24
+============================================================
+Extended Data Fig. 10 | Utilization of incidence correlates. The figure shows actual infection numbers I(t); solid black horizontal line). If k is over- or
+how utilization of incidence correlates may affect relative fitness estimates γ under-estimated γ gets scaled (with a factor ξ). If k is underestimated, the
+y y
+(magenta dots), depending on the choice of k (k−1 = estimate of the expected region’s population gets under-estimated, which results in under-estimating
+frequency of infection in the population over the time horizon of interest). the number of susceptibles (over-prediction of competition between variants.
+Essentially, if k is correctly predicted (vertical dashed line), γ is also correctly Note, that the qualitative results are correct in any case (inflection points γ = 0;
+y y
+estimated with incidence correlates ϕ(t) (in comparison to computing γ with variant ‘growth’ γ > 0 vs. variant ‘decline’ γ < 0).
+y y y
+
+============================================================
+PAGE 25
+============================================================
+
+
+============================================================
+PAGE 26
+============================================================
+
+
+============================================================
+PAGE 27
+============================================================

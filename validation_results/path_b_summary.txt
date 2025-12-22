@@ -1,4 +1,0 @@
-📊 RESULTS
-Country             Accuracy    VASIL_ref           Delta
-🎯 VERDICT
-   Accuracy: 79.4% (target: 77-82%)

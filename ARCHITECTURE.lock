@@ -1,0 +1,142 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# ARCHITECTURE.lock - PRISM>4D v0.3.0
+# ═══════════════════════════════════════════════════════════════════════════════
+# Consolidated: 2024-12-22 | Claude Code: READ THIS ENTIRE FILE BEFORE ANY CHANGES
+
+## WIN CONDITIONS
+# PRISM-4D: <60s full VASIL batch, >92% accuracy (12 countries)
+# PRISM-LBS: <2s/structure, accuracy TBD (blob bug invalidated 100% claim)
+
+## DEFAULT BUILD
+# cargo run -> crates/prism-ve-bench
+
+## ═══════════════════════════════════════════════════════════════════════════════
+## MEGA-FUSED KERNELS (5 production kernels)
+## ═══════════════════════════════════════════════════════════════════════════════
+# mega_fused_vasil_fluxnet.cu  - VASIL + FluxNet RL (CANONICAL for VE)
+# mega_fused_vasil.cu          - VASIL standalone
+# mega_fused_batch.cu          - General batch (142KB)
+# mega_fused_pocket_kernel.cu  - LBS pockets (BUGGY - blob issue)
+# mega_fused_fp16_tensor_core.cu - Tensor core acceleration
+
+## ═══════════════════════════════════════════════════════════════════════════════
+## VE-SWARM KERNELS (neuromorphic batch processing)
+## ═══════════════════════════════════════════════════════════════════════════════
+# ve_swarm_agents.cu              - 32-agent swarm inference
+# ve_swarm_dendritic_reservoir.cu - Dendritic reservoir
+# ve_swarm_temporal_conv.cu       - Temporal convolution
+
+## ═══════════════════════════════════════════════════════════════════════════════
+## IMMUNITY/PHYSICS KERNELS
+## ═══════════════════════════════════════════════════════════════════════════════
+# prism_immunity_ic50.cu       - IC50-based P_neut
+# epitope_p_neut.cu            - Epitope neutralization
+# gamma_envelope_reduction.cu  - Gamma envelope
+# polycentric_immunity.cu      - Multi-region
+# viral_evolution_fitness.cu   - Fitness scoring
+
+## ═══════════════════════════════════════════════════════════════════════════════
+## COMPILED PTX (kernels/ptx/)
+## ═══════════════════════════════════════════════════════════════════════════════
+# gpu_fluxnet_ve_batch.ptx - FluxNet VE (ready to load)
+# pocket_detection.ptx     - LBS detection
+# 20+ additional PTX files
+
+## ═══════════════════════════════════════════════════════════════════════════════
+## CANONICAL PATHS
+## ═══════════════════════════════════════════════════════════════════════════════
+# Source:      crates/, foundation/
+# Kernels:     crates/prism-gpu/src/kernels/
+# PTX:         kernels/ptx/
+# Data:        data/VASIL/ByCountry/
+# Q-table:     validation_results/fluxnet_ve_qtable.json
+# Thresholds:  validation_results/fluxnet_threshold_optimized.json
+# Docs:        docs/PRISM_VE_FORENSIC_AUDIT_REPORT.md
+
+## ═══════════════════════════════════════════════════════════════════════════════
+## KNOWN BUGS (fix before new features)
+## ═══════════════════════════════════════════════════════════════════════════════
+# 1. LBS blob bug - merge/expand DISABLED in prism-lbs/src/lib.rs:279-291
+# 2. API mismatch - detect_pockets() expects 9 args, calls pass 7
+# 3. StructureInput missing residue_types field
+# 4. Backup files in prism-ve-bench: vasil_exact_metric.rs.bak/.new/.with_path_a
+
+## ═══════════════════════════════════════════════════════════════════════════════
+## STRICT DEVELOPMENT CONSTRAINTS (NON-NEGOTIABLE)
+## ═══════════════════════════════════════════════════════════════════════════════
+
+### PROHIBITED BEHAVIORS - NEVER DO THESE:
+
+# 1. NO NEW ENTRY POINTS
+#    - Do NOT create new main.rs, bin/*.rs, or [[bin]] targets
+#    - Do NOT create "test runners", "benchmark runners", "example runners"
+#    - Use EXISTING entry points only: prism-ve-bench, prism-lbs
+#    - If a new binary seems needed, STOP and ask human first
+
+# 2. NO SILENT FALLBACKS
+#    - Do NOT implement "simplified versions" without explicit approval
+#    - Do NOT add CPU fallbacks for GPU code without asking
+#    - Do NOT silently reduce precision, batch size, or feature count
+#    - If something fails, REPORT IT - do not work around silently
+
+# 3. NO MOCK/PLACEHOLDER DATA
+#    - Do NOT use hardcoded values like `let accuracy = 0.95`
+#    - Do NOT use `// TODO: real implementation` with fake returns
+#    - Do NOT use `unimplemented!()` or `todo!()` in production paths
+#    - Do NOT use synthetic/random data when real data exists
+#    - ALL values must come from actual computation or real datasets
+
+# 4. NO "TIME CONSTRAINT" SHORTCUTS
+#    - Do NOT say "due to time constraints, here's a simplified version"
+#    - Do NOT implement partial solutions without flagging them
+#    - If full implementation is complex, STOP and discuss approach first
+#    - Quality over speed - always
+
+# 5. NO DUPLICATE IMPLEMENTATIONS
+#    - Do NOT create kernel_v2.cu, kernel_new.cu, kernel_fixed.cu
+#    - MODIFY the canonical file directly
+#    - If you need to preserve old code, use git branches, not file copies
+
+# 6. NO HIDDEN REGRESSIONS
+#    - Do NOT reduce functionality to make something compile
+#    - Do NOT comment out features to fix errors
+#    - Do NOT change function signatures without updating ALL callers
+
+### REQUIRED BEHAVIORS - ALWAYS DO THESE:
+
+# 1. ASK BEFORE CREATING
+#    - New file? ASK FIRST
+#    - New binary target? ASK FIRST
+#    - New kernel? ASK FIRST
+#    - New crate? ASK FIRST
+
+# 2. REPORT ALL ISSUES
+#    - Compilation error? REPORT exact error
+#    - Test failure? REPORT exact failure
+#    - Performance regression? REPORT metrics
+#    - Do NOT silently "fix" by reducing scope
+
+# 3. USE REAL DATA
+#    - VASIL data is in data/VASIL/ByCountry/
+#    - Trained Q-table is in validation_results/
+#    - PDB structures are in data/
+#    - NEVER substitute mock data
+
+# 4. MAINTAIN PRODUCTION QUALITY
+#    - All code must be production-grade
+#    - All metrics must be from real computation
+#    - All paths must use real data
+#    - No "example" or "demo" modes in production code
+
+# 5. SINGLE SOURCE OF TRUTH
+#    - One kernel per function, not multiple versions
+#    - One entry point per use case
+#    - One config file per deployment
+#    - Modify in place, don't duplicate
+
+### VIOLATION RESPONSE:
+# If you catch yourself about to violate these rules:
+# 1. STOP immediately
+# 2. Explain what you were about to do
+# 3. Ask for guidance on the correct approach
+# 4. Do NOT proceed with the violation "just to show something working"

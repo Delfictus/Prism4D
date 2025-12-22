@@ -27,6 +27,7 @@ members = [
     "crates/prism-ve-bench",  # VASIL Benchmark: GPU + FluxNet RL
     "crates/prism-gnn",
     "crates/prism-lbs",
+    "crates/prism-escape-extract",  # Real feature extraction for viral escape benchmark
 
     # ═══════════════════════════════════════════════════════════════════════════
     # Foundation Crates (Production-grade GPU Implementations)
@@ -38,7 +39,7 @@ members = [
 ]
 
 # Default package for `cargo run` - the unified TUI
-default-members = ["crates/prism"]
+default-members = ["crates/prism-ve-bench"]
 
 # prism-cli has been fully deprecated and migrated to crates/prism
 # All config and metrics_server functionality is now in the unified TUI

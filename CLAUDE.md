@@ -1,1 +1,0 @@
-- '/mnt/c/Users/Predator/Desktop/PRISM4D/PRISM-4D Master Blueprint.txt' and proceed with next steps

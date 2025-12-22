@@ -1,9 +1,0 @@
-# Data files (too large for git, download via scripts)
-data/raw/bloom_dms/
-data/raw/evescape/
-data/raw/structures/*.pdb
-data/processed/
-*.npy
-*.csv
-*.log
-test_output/

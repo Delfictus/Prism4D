@@ -1,0 +1,19 @@
+{
+  "negligible_threshold": 0.01,
+  "min_frequency": 0.044999994,
+  "min_peak_frequency": 0.03,
+  "confidence_margin": 0.02,
+  "country_adjustments": {},
+  "ic50": [
+    0.85,
+    1.12,
+    0.93,
+    1.05,
+    0.98,
+    1.21,
+    0.89,
+    1.08,
+    0.95,
+    1.03
+  ]
+}
