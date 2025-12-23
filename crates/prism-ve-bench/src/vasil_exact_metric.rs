@@ -2180,6 +2180,7 @@ impl VasilMetricComputer {
         fluxnet_power_opt: Option<[f32; 10]>,
         rise_bias_opt: Option<f32>,
         fall_bias_opt: Option<f32>,
+        gamma_threshold_opt: Option<f32>,  // NEW
     ) -> Result<VasilMetricResult> {
         use cudarc::driver::{CudaSlice, LaunchConfig};
         use cudarc::nvrtc::Ptx;
@@ -2202,6 +2203,7 @@ impl VasilMetricComputer {
         let fluxnet_power = fluxnet_power_opt.unwrap_or([1.0f32; 10]);
         let fluxnet_rise_bias = rise_bias_opt.unwrap_or(0.0f32);
         let fluxnet_fall_bias = fall_bias_opt.unwrap_or(0.0f32);
+        let gamma_threshold = gamma_threshold_opt.unwrap_or(1.0f32);  // NEW
 
         let mut per_country_accuracy: HashMap<String, f32> = HashMap::new();
         let mut total_predictions = 0u32;
@@ -2276,6 +2278,17 @@ impl VasilMetricComputer {
                 }
             }
 
+            // Flatten S_mean if available
+            let (s_mean_flat, use_s_mean) = if !country.s_mean_75pk.is_empty() {
+                let mut flat = Vec::with_capacity(max_history_days * 75);
+                for date_vals in &country.s_mean_75pk {
+                    flat.extend_from_slice(date_vals);
+                }
+                (flat, 1i32)
+            } else {
+                (vec![0.0f64; max_history_days * 75], 0i32)  // Empty placeholder
+            };
+
             // Upload to GPU
             let mut d_epitope_escape: CudaSlice<f32> = stream.alloc_zeros(n_variants * 10)?;
             let mut d_frequencies: CudaSlice<f32> = stream.alloc_zeros(n_variants * max_history_days)?;
@@ -2284,8 +2297,13 @@ impl VasilMetricComputer {
             let mut d_freq_changes: CudaSlice<f32> = stream.alloc_zeros(n_variants * n_eval_days)?;
             let mut d_ic50: CudaSlice<f32> = stream.alloc_zeros(10)?;
             let mut d_power: CudaSlice<f32> = stream.alloc_zeros(10)?;
+            let mut d_s_mean: CudaSlice<f64> = stream.alloc_zeros(max_history_days * 75)?;
             let mut d_correct: CudaSlice<u32> = stream.alloc_zeros(1)?;
             let mut d_total: CudaSlice<u32> = stream.alloc_zeros(1)?;
+            let mut d_correct_rise: CudaSlice<u32> = stream.alloc_zeros(1)?;
+            let mut d_total_rise: CudaSlice<u32> = stream.alloc_zeros(1)?;
+            let mut d_correct_fall: CudaSlice<u32> = stream.alloc_zeros(1)?;
+            let mut d_total_fall: CudaSlice<u32> = stream.alloc_zeros(1)?;
 
             stream.memcpy_htod(&epitope_escape_flat, &mut d_epitope_escape)?;
             stream.memcpy_htod(&frequencies_flat, &mut d_frequencies)?;
@@ -2294,6 +2312,7 @@ impl VasilMetricComputer {
             stream.memcpy_htod(&freq_changes_flat, &mut d_freq_changes)?;
             stream.memcpy_htod(ic50, &mut d_ic50)?;
             stream.memcpy_htod(&fluxnet_power, &mut d_power)?;
+            stream.memcpy_htod(&s_mean_flat, &mut d_s_mean)?;
 
             // Launch kernel (SINGLE GPU CALL - replaces triple-nested CPU loops)
             let cfg = LaunchConfig {
@@ -2317,8 +2336,15 @@ impl VasilMetricComputer {
                 builder.arg(&d_power);
                 builder.arg(&fluxnet_rise_bias);
                 builder.arg(&fluxnet_fall_bias);
+                builder.arg(&gamma_threshold);  // NEW: trainable threshold
                 builder.arg(&d_correct);
                 builder.arg(&d_total);
+                builder.arg(&d_correct_rise);
+                builder.arg(&d_total_rise);
+                builder.arg(&d_correct_fall);
+                builder.arg(&d_total_fall);
+                builder.arg(&d_s_mean);
+                builder.arg(&use_s_mean);
                 builder.arg(&landscape.population);
                 builder.arg(&n_variants_i32);
                 builder.arg(&n_eval_days_i32);
@@ -2332,9 +2358,17 @@ impl VasilMetricComputer {
             // Download results
             let h_correct: Vec<u32> = stream.clone_dtoh(&d_correct)?;
             let h_total: Vec<u32> = stream.clone_dtoh(&d_total)?;
+            let h_correct_rise: Vec<u32> = stream.clone_dtoh(&d_correct_rise)?;
+            let h_total_rise: Vec<u32> = stream.clone_dtoh(&d_total_rise)?;
+            let h_correct_fall: Vec<u32> = stream.clone_dtoh(&d_correct_fall)?;
+            let h_total_fall: Vec<u32> = stream.clone_dtoh(&d_total_fall)?;
 
             let country_correct = h_correct[0];
             let country_total = h_total[0];
+            let rise_correct = h_correct_rise[0];
+            let rise_total = h_total_rise[0];
+            let fall_correct = h_correct_fall[0];
+            let fall_total = h_total_fall[0];
 
             total_correct += country_correct;
             total_predictions += country_total;
@@ -2345,11 +2379,26 @@ impl VasilMetricComputer {
                 0.0
             };
 
+            let rise_acc = if rise_total > 0 {
+                rise_correct as f32 / rise_total as f32
+            } else {
+                0.0
+            };
+
+            let fall_acc = if fall_total > 0 {
+                fall_correct as f32 / fall_total as f32
+            } else {
+                0.0
+            };
+
             per_country_accuracy.insert(country.name.clone(), country_acc);
 
             let country_time = country_start.elapsed();
-            eprintln!("[GPU-NATIVE] {}: {}/{} = {:.2}% ({:.2}s)",
-                      country.name, country_correct, country_total, country_acc * 100.0, country_time.as_secs_f64());
+            eprintln!("[FORENSIC] {}: N={}, RISE={}/{} ({:.1}% correct), FALL={}/{} ({:.1}% correct), Total={:.2}%",
+                      country.name, country_total,
+                      rise_correct, rise_total, rise_acc * 100.0,
+                      fall_correct, fall_total, fall_acc * 100.0,
+                      country_acc * 100.0);
         }
 
         let gpu_total_time = gpu_start.elapsed();
@@ -2384,14 +2433,14 @@ impl VasilMetricComputer {
         evaluation_end: NaiveDate,
         context: &Arc<cudarc::driver::CudaContext>,
         stream: &Arc<cudarc::driver::CudaStream>,
-        param_sets: &[([f32; 10], [f32; 10], f32, f32)],  // (ic50[10], power[10], rise_bias, fall_bias)
+        param_sets: &[([f32; 10], [f32; 10], f32, f32, f32)],  // (ic50[10], power[10], rise_bias, fall_bias, gamma_threshold)
     ) -> Result<Vec<f64>> {
         let mut accuracies = Vec::with_capacity(param_sets.len());
 
         eprintln!("[ES-BATCH] Evaluating {} parameter sets...", param_sets.len());
         let batch_start = std::time::Instant::now();
 
-        for (i, &(ref ic50, ref power, rise_bias, fall_bias)) in param_sets.iter().enumerate() {
+        for (i, &(ref ic50, ref power, rise_bias, fall_bias, gamma_threshold)) in param_sets.iter().enumerate() {
             // Temporarily update IC50 for this evaluation
             let old_ic50 = *self.gamma_computer.get_ic50();
             self.gamma_computer.set_ic50([
@@ -2399,16 +2448,17 @@ impl VasilMetricComputer {
                 ic50[5], ic50[6], ic50[7], ic50[8], ic50[9],
             ]);
 
-            // Evaluate with GPU kernel (pass ALL 24 trainable params)
+            // Evaluate with GPU kernel (pass ALL trainable params including gamma_threshold)
             let result = self.compute_with_gpu_kernel(
                 all_countries,
                 evaluation_start,
                 evaluation_end,
                 context,
                 stream,
-                Some(*power),      // power[11]
-                Some(rise_bias),   // rise_bias
-                Some(fall_bias),   // fall_bias
+                Some(*power),           // power[10]
+                Some(rise_bias),        // rise_bias
+                Some(fall_bias),        // fall_bias
+                Some(gamma_threshold),  // gamma_threshold (NEW)
             )?;
 
             accuracies.push(result.mean_accuracy as f64);

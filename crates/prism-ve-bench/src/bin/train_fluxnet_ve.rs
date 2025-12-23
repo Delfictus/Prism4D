@@ -149,10 +149,11 @@ const ES_LEARNING_RATE: f64 = 0.02;  // Gradient step size
 
 #[derive(Clone)]
 struct StructuredParams {
-    log_ic50: [f64; 10],    // LOG SPACE for numerical stability (10 epitope classes)
-    power: [f64; 10],       // Linear space
-    rise_bias: f64,         // Can be negative
-    fall_bias: f64,         // Can be negative
+    log_ic50: [f64; 10],     // LOG SPACE for numerical stability (10 epitope classes)
+    power: [f64; 10],        // Linear space
+    rise_bias: f64,          // Can be negative
+    fall_bias: f64,          // Can be negative
+    gamma_threshold: f64,    // NEW: ES finds optimal decision boundary
 }
 
 impl Default for StructuredParams {
@@ -168,19 +169,20 @@ impl Default for StructuredParams {
             power: [1.0f64; 10],  // Uniform baseline
             rise_bias: 0.0,
             fall_bias: 0.0,
+            gamma_threshold: 1.0,  // Start at 1.0, ES will optimize
         }
     }
 }
 
 impl StructuredParams {
-    fn to_linear(&self) -> ([f32; 10], [f32; 10], f32, f32) {
+    fn to_linear(&self) -> ([f32; 10], [f32; 10], f32, f32, f32) {
         let mut ic50 = [0.0f32; 10];
         let mut power = [0.0f32; 10];
         for i in 0..10 {
             ic50[i] = self.log_ic50[i].exp() as f32;  // Convert back from log space
             power[i] = self.power[i] as f32;
         }
-        (ic50, power, self.rise_bias as f32, self.fall_bias as f32)
+        (ic50, power, self.rise_bias as f32, self.fall_bias as f32, self.gamma_threshold as f32)
     }
 
     fn apply_structured_noise(&self, noise_log_ic50: &[f64], noise_power: &[f64], noise_bias: &[f64]) -> Self {
@@ -195,6 +197,7 @@ impl StructuredParams {
         }
         new_params.rise_bias = (new_params.rise_bias + noise_bias[0]).clamp(-1.0, 1.0);
         new_params.fall_bias = (new_params.fall_bias + noise_bias[1]).clamp(-1.0, 1.0);
+        new_params.gamma_threshold = (new_params.gamma_threshold + noise_bias[2]).clamp(0.5, 1.5);
         new_params
     }
 }
@@ -444,6 +447,7 @@ fn main() -> Result<()> {
         None,  // Default power[11] = [1.0, ...]
         None,  // Default rise_bias = 0.0
         None,  // Default fall_bias = 0.0
+        None,  // Default gamma_threshold = 1.0
     )?;
 
     let baseline_acc = baseline_result.mean_accuracy as f64;
@@ -481,6 +485,7 @@ fn main() -> Result<()> {
                 None,  // Default power[10]
                 Some(rise_bias),
                 Some(fall_bias),
+                None,  // Default gamma_threshold
             )?;
 
             let acc = result.mean_accuracy as f64;
@@ -543,7 +548,7 @@ fn main() -> Result<()> {
         let population = es_optimizer.generate_population();
 
         // Convert to batched format (ic50[10], power[10], rise_bias, fall_bias)
-        let param_sets: Vec<([f32; 10], [f32; 10], f32, f32)> = population.iter()
+        let param_sets: Vec<([f32; 10], [f32; 10], f32, f32, f32)> = population.iter()
             .map(|(params, _noise)| params.to_linear())
             .collect();
 
@@ -593,7 +598,7 @@ fn main() -> Result<()> {
     eprintln!();
 
     // Print optimized params (convert from log space)
-    let (best_ic50, best_power, best_rise, best_fall) = es_optimizer.best_params.to_linear();
+    let (best_ic50, best_power, best_rise, best_fall, best_threshold) = es_optimizer.best_params.to_linear();
 
     eprintln!("Optimized IC50 values:");
     let epitope_names = ["A", "B", "C", "D1", "D2", "E12", "E3", "F1", "F2", "F3"];

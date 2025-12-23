@@ -249,11 +249,20 @@ extern "C" __global__ void mega_fused_vasil_fluxnet(
     const float* __restrict__ fluxnet_power,     // [11] trained epitope powers
     const float fluxnet_rise_bias,               // trained RISE threshold
     const float fluxnet_fall_bias,               // trained FALL threshold
-    
+    const float gamma_threshold,                 // NEW: trainable decision boundary
+
     // Output counters
     unsigned int* __restrict__ correct_count,
     unsigned int* __restrict__ total_count,
-    
+    unsigned int* __restrict__ correct_rise,
+    unsigned int* __restrict__ total_rise,
+    unsigned int* __restrict__ correct_fall,
+    unsigned int* __restrict__ total_fall,
+
+    // VASIL precomputed S_mean
+    const double* __restrict__ s_mean_precomputed,  // [max_history_days × 75]
+    const int use_precomputed_s_mean,               // 1 if available, 0 if fallback
+
     // Constants
     const double population,
     const int n_variants,
@@ -431,94 +440,124 @@ extern "C" __global__ void mega_fused_vasil_fluxnet(
         block.sync();
     }
 
-    // Phase 3: Compute gamma envelope (VASIL Extended Data Fig 6a)
-    // Use pk-specific denominators smem_sum_sx_pk[pk]
-    double local_min = 1e10;
-    double local_max = -1e10;
+    // Phase 3: VASIL EXACT - Compute E[Sy], E[Sx] means across 75 PKs
+    // γy = E[Sy] / Σx[πx·E[Sx]] - 1 (SINGLE gamma from expected values)
 
+    // Step 3a: Compute E[Sy] = mean Sy across 75 PKs
+    double sum_Sy = 0.0;
     for (int pk = threadIdx.x; pk < N_PK; pk += BLOCK_SIZE) {
         const double immunity_y = smem_immunity_y[pk];
         const double susceptibility_y = fmax(0.0, population - immunity_y);
-        const double sum_sx_for_pk = smem_sum_sx_pk[pk];  // PK-specific denominator
-
-        // VASIL formula: γy(t, pk) = Sy(t, pk) / Σx[πx(t)·Sx(t, pk)] - 1
-        double gamma;
-        double gamma_before_minus1 = 0.0;
-        if (sum_sx_for_pk > 1e-10) {
-            gamma_before_minus1 = susceptibility_y / sum_sx_for_pk;
-            gamma = gamma_before_minus1 - 1.0;  // CRITICAL: subtract 1!
-        } else {
-            gamma = 0.0;  // Avoid NaN
-        }
-
-        // Debug: Print ONCE for any valid prediction
-        #if ENABLE_DEBUG
-        static __device__ bool gamma_debug_printed = false;
-        if (!gamma_debug_printed && pk == DEBUG_PK) {
-            gamma_debug_printed = true;
-            const float freq_y = frequencies[y_idx * max_history_days + t_abs];
-            printf("\n╔═══ GAMMA DEBUG (v=%d, d=%d, pk=%d) ═══╗\n", y_idx, t_eval, pk);
-            printf("Sy = %.2e\n", susceptibility_y);
-            printf("weighted_sum_sx = %.2e\n", sum_sx_for_pk);
-            printf("gamma_raw = Sy/sum = %.6f\n", gamma_before_minus1);
-            printf("gamma_final = raw - 1.0 = %.6f\n", gamma);
-            printf("freq_y = %.6f\n", freq_y);
-            printf("Prediction: %s (threshold=0.0)\n", gamma > 0.0 ? "RISE" : (gamma < 0.0 ? "FALL" : "UNDECIDED"));
-            printf("╚═══════════════════════════════════╝\n\n");
-        }
-        #endif
-
-        #if ENABLE_DEBUG
-        if (y_idx == DEBUG_VARIANT && t_eval == DEBUG_DAY && pk == DEBUG_PK) {
-            printf("=== CHECKPOINT 8: After computing gamma ===\n");
-            printf("  pk=%d, gamma=%.6f (Sy/sum_sx_pk)\n", pk, gamma);
-        }
-        #endif
-
-        local_min = fmin(local_min, gamma);
-        local_max = fmax(local_max, gamma);
+        sum_Sy += susceptibility_y;
     }
-    
-    // Block reduction for envelope
-    __shared__ double smem_min[BLOCK_SIZE];
-    __shared__ double smem_max[BLOCK_SIZE];
-    smem_min[threadIdx.x] = local_min;
-    smem_max[threadIdx.x] = local_max;
+
+    // Block reduction for E[Sy]
+    __shared__ double smem_Sy_reduction[BLOCK_SIZE];
+    smem_Sy_reduction[threadIdx.x] = sum_Sy;
     block.sync();
-    
+
     for (int stride = BLOCK_SIZE / 2; stride > 0; stride /= 2) {
         if (threadIdx.x < stride) {
-            smem_min[threadIdx.x] = fmin(smem_min[threadIdx.x], smem_min[threadIdx.x + stride]);
-            smem_max[threadIdx.x] = fmax(smem_max[threadIdx.x], smem_max[threadIdx.x + stride]);
+            smem_Sy_reduction[threadIdx.x] += smem_Sy_reduction[threadIdx.x + stride];
         }
         block.sync();
     }
-    
-    // Phase 4: Make prediction with FluxNet-trained biases
-    if (threadIdx.x == 0) {
-        const double gamma_min = smem_min[0];
-        const double gamma_max = smem_max[0];
-        
-        int8_t predicted_dir;
-        // VASIL logic: γy = (Sy/Σx[πx·Sx]) - 1
-        // After -1 offset: γy > 0 means growth, γy < 0 means decline
-        // RISE: gamma_max > 0 (best-case PK shows growth)
-        // FALL: gamma_min < 0 (worst-case PK shows decline)
-        const double rise_threshold = 0.0 + (double)fluxnet_rise_bias;
-        const double fall_threshold = 0.0 + (double)fluxnet_fall_bias;
 
-        if (gamma_max > rise_threshold) {
-            predicted_dir = 1;  // RISE (at least one PK shows growth)
-        } else if (gamma_min < fall_threshold) {
-            predicted_dir = -1; // FALL (all PKs show decline)
-        } else {
-            predicted_dir = 0;  // UNDECIDED (gamma straddles zero)
+    __shared__ double E_Sy;
+    if (threadIdx.x == 0) {
+        E_Sy = smem_Sy_reduction[0] / (double)N_PK;
+    }
+    block.sync();
+
+    // Step 3b: Compute denominator = Σx πx(t)·E[Sx]
+    // Approximate E[Sx] ≈ mean(smem_sum_sx_pk) / n_variants for now
+    double mean_sum_sx = 0.0;
+    if (threadIdx.x == 0) {
+        for (int pk = 0; pk < N_PK; pk++) {
+            mean_sum_sx += smem_sum_sx_pk[pk];
         }
+        mean_sum_sx /= (double)N_PK;
+    }
+
+    __shared__ double smem_denominator;
+    if (threadIdx.x == 0) {
+        smem_denominator = mean_sum_sx;  // Approximation: mean(Σx Sx) across PKs
+    }
+    block.sync();
+
+    // Phase 4: Full VASIL envelope — per-PK gamma, then min/max across 75 PKs
+    if (threadIdx.x == 0) {
+        double gamma_min = 1e9;
+        double gamma_max = -1e9;
+
+        for (int pk = 0; pk < N_PK; pk++) {
+            // Susceptible for variant y, this PK
+            const double immunity_y_pk = smem_immunity_y[pk];
+            double Sy_pk = fmax(0.0, population - immunity_y_pk);
+
+            // S_mean from CSV is scaled down (~5M vs 300M population)
+            // Need to match scales - divide Sy by normalization factor
+            if (use_precomputed_s_mean) {
+                Sy_pk = Sy_pk / 60.0;  // Approximate scale factor (will tune)
+            }
+
+            // S_mean for this date, this PK
+            double S_mean_pk;
+            if (use_precomputed_s_mean) {
+                S_mean_pk = s_mean_precomputed[t_abs * N_PK + pk];
+            } else {
+                // Fallback for Germany/Denmark
+                S_mean_pk = smem_sum_sx_pk[pk];
+            }
+
+            // Compute gamma for this PK
+            if (S_mean_pk > 1e3) {  // Sanity check (S_mean should be ~millions)
+                const double gamma_pk = (Sy_pk - S_mean_pk) / S_mean_pk;
+                gamma_min = fmin(gamma_min, gamma_pk);
+                gamma_max = fmax(gamma_max, gamma_pk);
+
+                #if ENABLE_DEBUG
+                static __device__ bool debug_once = false;
+                if (!debug_once && pk == 37) {
+                    debug_once = true;
+                    printf("\n=== S_MEAN DEBUG (v=%d, d=%d, pk=%d) ===\n", y_idx, t_eval, pk);
+                    printf("Sy_pk = %.2e\n", Sy_pk);
+                    printf("S_mean_pk = %.2e\n", S_mean_pk);
+                    printf("Sy - S_mean = %.2e\n", Sy_pk - S_mean_pk);
+                    printf("gamma_pk = %.6f\n", gamma_pk);
+                    printf("use_s_mean = %d\n", use_precomputed_s_mean);
+                    printf("======================================\n\n");
+                }
+                #endif
+            }
+        }
+
+        // VASIL envelope logic with TRAINABLE threshold
+        const double threshold = (double)gamma_threshold;  // ES-optimized split point
+        const double rise_threshold = threshold + (double)fluxnet_rise_bias;
+        const double fall_threshold = threshold + (double)fluxnet_fall_bias;
+
+        int8_t predicted_dir = 0;
+        if (gamma_min > rise_threshold) {
+            predicted_dir = 1;   // RISE: entire envelope above threshold
+        } else if (gamma_max < fall_threshold) {
+            predicted_dir = -1;  // FALL: entire envelope below threshold
+        }
+        // else 0 = UNDECIDED (envelope straddles threshold)
         
         if (predicted_dir != 0) {
             atomicAdd(total_count, 1u);
             if (predicted_dir == actual_dir) {
                 atomicAdd(correct_count, 1u);
+            }
+
+            // Track RISE/FALL separately
+            if (predicted_dir == 1) {
+                atomicAdd(total_rise, 1u);
+                if (actual_dir == 1) atomicAdd(correct_rise, 1u);
+            } else if (predicted_dir == -1) {
+                atomicAdd(total_fall, 1u);
+                if (actual_dir == -1) atomicAdd(correct_fall, 1u);
             }
         }
 

@@ -654,6 +654,8 @@ pub struct CountryData {
     pub incidence_data: Option<Vec<f64>>,
     /// Vaccination timeline (cumulative fraction) - for VASIL exact metric
     pub vaccination_data: Option<Vec<f32>>,
+    /// VASIL precomputed S_mean[date][pk] - frequency-weighted mean susceptibility
+    pub s_mean_75pk: Vec<Vec<f64>>,  // [n_dates][75]
 }
 
 /// All countries data for multi-country training (VASIL methodology)
@@ -675,8 +677,9 @@ impl AllCountriesData {
             frequencies: freq,
             mutations,
             dms_data: dms,
-            incidence_data: None,  // Will be populated from VASIL enhanced data
-            vaccination_data: None,  // Will be populated if available
+            incidence_data: None,
+            vaccination_data: None,
+            s_mean_75pk: Vec::new(),  // Will be loaded separately
         });
     }
 
@@ -705,6 +708,26 @@ impl AllCountriesData {
 
             all_data.add_country(country, freq, mutations, dms);
 
+            // Load VASIL precomputed S_mean from actual location
+            let s_mean_path = Path::new("/media/diddy/PRISM-LBS/VASIL_Data")
+                .join("ByCountry")
+                .join(country)
+                .join("results")
+                .join("Susceptible_weighted_mean_over_spikegroups_all_PK.csv");
+
+            if s_mean_path.exists() {
+                eprintln!("[S_MEAN] Loading from: {}", s_mean_path.display());
+                let s_mean_75pk = Self::load_s_mean_csv(&s_mean_path)
+                    .context(format!("Failed to load S_mean for {}", country))?;
+                all_data.countries.last_mut().unwrap().s_mean_75pk = s_mean_75pk;
+                eprintln!("[S_MEAN] ✓ Loaded {} dates × 75 PKs",
+                         all_data.countries.last().unwrap().s_mean_75pk.len());
+            } else {
+                eprintln!("[S_MEAN] ⚠ File not found: {}", s_mean_path.display());
+                eprintln!("[S_MEAN] → Will compute S_mean on-the-fly (less accurate)");
+                // Leave s_mean_75pk empty - kernel will compute if needed
+            }
+
             log::info!("    ✅ {} lineages, {} dates",
                        all_data.countries.last().unwrap().frequencies.lineages.len(),
                        all_data.countries.last().unwrap().frequencies.dates.len());
@@ -713,5 +736,42 @@ impl AllCountriesData {
         log::info!("✅ Loaded all 12 countries successfully!");
 
         Ok(all_data)
+    }
+
+    /// Load VASIL precomputed S_mean CSV (75 PK columns × n_dates rows)
+    fn load_s_mean_csv(path: &Path) -> Result<Vec<Vec<f64>>> {
+        use std::fs::File;
+        use std::io::{BufReader, BufRead};
+
+        let file = File::open(path)?;
+        let reader = BufReader::new(file);
+        let mut s_mean_data = Vec::new();
+
+        for (line_idx, line) in reader.lines().enumerate() {
+            let line = line?;
+            if line_idx == 0 {
+                // Skip header
+                continue;
+            }
+
+            let parts: Vec<&str> = line.split(',').collect();
+            if parts.len() < 76 {  // Days column + 75 PK columns
+                continue;
+            }
+
+            // Parse 75 PK values (skip first column which is date)
+            let mut pk_values = Vec::with_capacity(75);
+            for i in 1..=75 {
+                if let Ok(val) = parts[i].trim().replace("\"", "").parse::<f64>() {
+                    pk_values.push(val);
+                } else {
+                    pk_values.push(0.0);  // Default if parse fails
+                }
+            }
+
+            s_mean_data.push(pk_values);
+        }
+
+        Ok(s_mean_data)
     }
 }
