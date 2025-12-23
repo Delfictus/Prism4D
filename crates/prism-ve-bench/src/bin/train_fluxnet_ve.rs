@@ -452,8 +452,9 @@ fn main() -> Result<()> {
     eprintln!("     Correct: {}", baseline_result.total_correct);
 
     // ═══════════════════════════════════════════════════════════════════════════
-    // BIAS SWEEP: Find optimal rise/fall thresholds
+    // BIAS SWEEP: PERMANENTLY DISABLED (showed 0.00 improvement)
     // ═══════════════════════════════════════════════════════════════════════════
+    if false {  // DISABLED - 0.00 improvement over 49 combinations
     eprintln!("\n[BIAS SWEEP] Grid search for optimal thresholds...");
     eprintln!("════════════════════════════════════════════════════════════════════════");
 
@@ -514,6 +515,7 @@ fn main() -> Result<()> {
         eprintln!("  {}: {:.2}%", country, acc * 100.0);
     }
     eprintln!();
+    }  // End DISABLED bias sweep
 
     // ═══════════════════════════════════════════════════════════════════════════
     // STEP 5: PRISM-ES Training

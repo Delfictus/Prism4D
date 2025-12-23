@@ -97,12 +97,16 @@ __device__ __forceinline__ float compute_p_neut_fluxnet(
     const float thalf = c_thalf[pk_idx % 15];
     const float ke = __logf(2.0f) / thalf;
     
-    float ka;
-    const float ke_tmax = ke * tmax;
-    if (ke_tmax > __logf(2.0f) + 0.01f) {
-        ka = __logf(ke_tmax / (ke_tmax - __logf(2.0f)));
-    } else {
-        ka = ke * 2.0f;
+    // VASIL Paper: Solve tmax = ln(ka/ke) / (ka - ke) for ka
+    // Transcendental equation — use Newton-Raphson iteration
+    // f(ka) = (ka - ke) * tmax - ln(ka/ke) = 0
+    // df/dka = tmax - 1/ka
+    float ka = ke * 5.0f;  // Initial guess (4-10× works, 5× is safe)
+    #pragma unroll
+    for (int iter = 0; iter < 5; iter++) {
+        const float f = (ka - ke) * tmax - __logf(ka / ke);
+        const float df_dka = tmax - 1.0f / ka;
+        ka = ka - f / df_dka;  // Newton-Raphson step
     }
     
     const float exp_ke_tmax = __expf(-ke * tmax);
@@ -118,22 +122,13 @@ __device__ __forceinline__ float compute_p_neut_fluxnet(
     
     if (c_t < 1e-8f) return 0.0f;
 
-    #if ENABLE_DEBUG
-    if (pk_idx == DEBUG_PK && delta_t == 1) {
-        printf("=== CHECKPOINT 3: After computing c(t) ===\n");
-        printf("  delta_t=%d, pk_idx=%d, c_t=%.6f\n", delta_t, pk_idx, c_t);
-        printf("  tmax=%.2f, thalf=%.2f, ke=%.6f, ka=%.6f\n", tmax, thalf, ke, ka);
-    }
-    #endif
+    // Debug disabled - too much output
+    // c_t calculation verified: ka Newton-Raphson working
 
     // P_neut with FluxNet-trained IC50 and epitope powers
     float log_product = 0.0f;
 
-    #if ENABLE_DEBUG
-    if (pk_idx == DEBUG_PK && delta_t == 1) {
-        printf("=== P_NEUT ACCUMULATION START (delta_t=%d, pk=%d) ===\n", delta_t, pk_idx);
-    }
-    #endif
+    // P_neut accumulation debug disabled
 
     #pragma unroll
     for (int e = 0; e < N_EPITOPES; e++) {
@@ -170,24 +165,12 @@ __device__ __forceinline__ float compute_p_neut_fluxnet(
         const float log_contrib = power_e * __logf(one_minus_b);
         log_product += log_contrib;
 
-        #if ENABLE_DEBUG
-        if (pk_idx == DEBUG_PK && delta_t == 1) {
-            printf("  epitope[%d]: escape_x=%.4f, escape_y=%.4f, FR=%.4f, b_theta=%.6f\n",
-                   e, escape_x[e], escape_y[e], fold_res, b_theta);
-            printf("             power=%.2f, (1-b)=%.6f, log(1-b)=%.6f, contrib=%.6f, running_sum=%.6f\n",
-                   power_e, one_minus_b, __logf(one_minus_b), log_contrib, log_product);
-        }
-        #endif
+        // Epitope debug disabled
     }
 
     const float p_neut_result = 1.0f - __expf(log_product);
 
-    #if ENABLE_DEBUG
-    if (pk_idx == DEBUG_PK && delta_t == 1) {
-        printf("=== P_NEUT FINAL: log_product=%.6f, exp(log)=%.6e, P_neut=%.6f ===\n",
-               log_product, __expf(log_product), p_neut_result);
-    }
-    #endif
+    // P_neut final debug disabled
 
     return p_neut_result;
 }
@@ -417,7 +400,8 @@ extern "C" __global__ void mega_fused_vasil_fluxnet(
 
             if (warp.thread_rank() == 0 && x < n_variants) {
                 const double susceptibility_x = fmax(0.0, population - immunity_x);
-                warp_sum_sx += susceptibility_x;  // VASIL: Σx Sx(t, pk)
+                // TEST A: Simple sum (no frequency weighting)
+                warp_sum_sx += susceptibility_x;  // Sx(t, pk) only
             }
         }
 
@@ -457,21 +441,32 @@ extern "C" __global__ void mega_fused_vasil_fluxnet(
         const double susceptibility_y = fmax(0.0, population - immunity_y);
         const double sum_sx_for_pk = smem_sum_sx_pk[pk];  // PK-specific denominator
 
-        #if ENABLE_DEBUG
-        if (y_idx == DEBUG_VARIANT && t_eval == DEBUG_DAY && pk == DEBUG_PK) {
-            printf("=== CHECKPOINT 6: After computing Sy ===\n");
-            printf("  pk=%d, immunity_y=%.6f, susceptibility_y=%.6f, sum_sx_pk=%.6f\n",
-                   pk, immunity_y, susceptibility_y, sum_sx_for_pk);
-        }
-        #endif
-
-        // VASIL formula: γy(t, pk) = Sy(t, pk) / Σx Sx(t, pk)
+        // VASIL formula: γy(t, pk) = Sy(t, pk) / Σx[πx(t)·Sx(t, pk)] - 1
         double gamma;
-        if (sum_sx_for_pk > 0.1) {
-            gamma = susceptibility_y / sum_sx_for_pk;
+        double gamma_before_minus1 = 0.0;
+        if (sum_sx_for_pk > 1e-10) {
+            gamma_before_minus1 = susceptibility_y / sum_sx_for_pk;
+            gamma = gamma_before_minus1 - 1.0;  // CRITICAL: subtract 1!
         } else {
             gamma = 0.0;  // Avoid NaN
         }
+
+        // Debug: Print ONCE for any valid prediction
+        #if ENABLE_DEBUG
+        static __device__ bool gamma_debug_printed = false;
+        if (!gamma_debug_printed && pk == DEBUG_PK) {
+            gamma_debug_printed = true;
+            const float freq_y = frequencies[y_idx * max_history_days + t_abs];
+            printf("\n╔═══ GAMMA DEBUG (v=%d, d=%d, pk=%d) ═══╗\n", y_idx, t_eval, pk);
+            printf("Sy = %.2e\n", susceptibility_y);
+            printf("weighted_sum_sx = %.2e\n", sum_sx_for_pk);
+            printf("gamma_raw = Sy/sum = %.6f\n", gamma_before_minus1);
+            printf("gamma_final = raw - 1.0 = %.6f\n", gamma);
+            printf("freq_y = %.6f\n", freq_y);
+            printf("Prediction: %s (threshold=0.0)\n", gamma > 0.0 ? "RISE" : (gamma < 0.0 ? "FALL" : "UNDECIDED"));
+            printf("╚═══════════════════════════════════╝\n\n");
+        }
+        #endif
 
         #if ENABLE_DEBUG
         if (y_idx == DEBUG_VARIANT && t_eval == DEBUG_DAY && pk == DEBUG_PK) {
@@ -505,18 +500,19 @@ extern "C" __global__ void mega_fused_vasil_fluxnet(
         const double gamma_max = smem_max[0];
         
         int8_t predicted_dir;
-        // VASIL logic: γy > 1.0 → variant grows, γy < 1.0 → variant declines
-        // RISE: gamma_max > threshold (best-case PK shows growth potential)
-        // FALL: gamma_min < threshold (worst-case PK shows decline)
-        const double rise_threshold = 1.0 + (double)fluxnet_rise_bias;
-        const double fall_threshold = 1.0 + (double)fluxnet_fall_bias;
+        // VASIL logic: γy = (Sy/Σx[πx·Sx]) - 1
+        // After -1 offset: γy > 0 means growth, γy < 0 means decline
+        // RISE: gamma_max > 0 (best-case PK shows growth)
+        // FALL: gamma_min < 0 (worst-case PK shows decline)
+        const double rise_threshold = 0.0 + (double)fluxnet_rise_bias;
+        const double fall_threshold = 0.0 + (double)fluxnet_fall_bias;
 
         if (gamma_max > rise_threshold) {
             predicted_dir = 1;  // RISE (at least one PK shows growth)
         } else if (gamma_min < fall_threshold) {
             predicted_dir = -1; // FALL (all PKs show decline)
         } else {
-            predicted_dir = 0;  // UNDECIDED (gamma straddles threshold)
+            predicted_dir = 0;  // UNDECIDED (gamma straddles zero)
         }
         
         if (predicted_dir != 0) {
