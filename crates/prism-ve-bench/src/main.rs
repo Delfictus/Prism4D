@@ -184,7 +184,7 @@ fn main() -> Result<()> {
     println!("  Target: 75-85% accuracy (vs 53% baseline)");
     println!("{}", "=".repeat(80));
 
-    let vasil_data_dir = Path::new("/mnt/c/Users/Predator/Desktop/prism-ve/data/VASIL");
+    let vasil_data_dir = Path::new("data/VASIL");
     // TEMPORAL HOLDOUT: train on data before cutoff, test on data from cutoff onwards
     let train_cutoff = NaiveDate::from_ymd_opt(2022, 6, 1).unwrap();
 

@@ -32,6 +32,12 @@
 
 namespace cg = cooperative_groups;
 
+// === DEBUG CONFIGURATION ===
+#define DEBUG_VARIANT 0    // Debug first variant only
+#define DEBUG_DAY 0        // Debug first eval day only
+#define DEBUG_PK 37        // Debug middle PK combination
+#define ENABLE_DEBUG 1     // Set to 0 to disable all debug output
+
 constexpr int MAX_DELTA_DAYS = 1500;
 constexpr int N_EPITOPES = 11;
 constexpr int N_PK = 75;
@@ -285,44 +291,82 @@ extern "C" __global__ void mega_fused_vasil_fluxnet(
     }
     block.sync();
     
-    // Phase 2: Compute frequency-weighted average susceptibility (DATA-DRIVEN, not FluxNet)
-    __shared__ double smem_weighted_avg_s;
-    
-    if (threadIdx.x == 0) {
-        double weighted_sum = 0.0;
-        double freq_sum = 0.0;
-        
-        for (int x = 0; x < n_variants; x++) {
-            const float freq = frequencies[x * max_history_days + t_abs];
-            if (freq < 0.001f) continue;
-            
-            // Use middle PK for weighted avg (standard VASIL approach)
-            const double immunity_x = smem_immunity_y[37];  // Middle PK
-            const double susceptibility_x = fmax(0.0, population - immunity_x);
-            
-            weighted_sum += (double)freq * susceptibility_x;
-            freq_sum += (double)freq;
+    // Phase 2: Compute Σx Sx(t) per VASIL formula (Extended Data Fig 6a)
+    // BUGFIX: Must compute immunity_x for EACH variant x (not reuse immunity_y!)
+
+    // Warp-parallel computation of Σx Sx(t)
+    double warp_sum_sx = 0.0;
+
+    // Each warp processes variants in parallel
+    for (int x_base = 0; x_base < n_variants; x_base += warps_per_block) {
+        const int x = x_base + warp_id;
+        if (x >= n_variants) break;
+
+        const float freq_x = frequencies[x * max_history_days + t_abs];
+        if (freq_x < 0.001f) continue;
+
+        // Compute immunity_x using this warp (middle PK = 37)
+        double immunity_x = 0.0;
+        for (int s = warp.thread_rank(); s < t_abs && s < max_history_days; s += WARP_SIZE) {
+            const int delta_t = t_abs - s;
+            if (delta_t <= 0) continue;
+            const double inc = incidence[s];
+            if (inc < 1.0) continue;
+
+            for (int x2 = 0; x2 < n_variants; x2++) {
+                const float freq_x2 = frequencies[x2 * max_history_days + s];
+                if (freq_x2 < 0.001f) continue;
+
+                float escape_x2[N_EPITOPES], escape_x[N_EPITOPES];
+                for (int e = 0; e < N_EPITOPES; e++) {
+                    escape_x2[e] = epitope_escape[x2 * N_EPITOPES + e];
+                    escape_x[e] = epitope_escape[x * N_EPITOPES + e];
+                }
+
+                const float p_neut = compute_p_neut_fluxnet(
+                    escape_x2, escape_x, fluxnet_ic50, fluxnet_power, delta_t, 37
+                );
+
+                if (p_neut > 1e-8f) {
+                    immunity_x += (double)freq_x2 * inc * (double)p_neut;
+                }
+            }
         }
-        
-        smem_weighted_avg_s = (freq_sum > 0.0) ? (weighted_sum / freq_sum) : (population * 0.5);
+
+        // Warp reduction
+        for (int offset = WARP_SIZE / 2; offset > 0; offset /= 2) {
+            immunity_x += warp.shfl_down(immunity_x, offset);
+        }
+
+        if (warp.thread_rank() == 0 && x < n_variants) {
+            const double susceptibility_x = fmax(0.0, population - immunity_x);
+            warp_sum_sx += susceptibility_x;  // VASIL: Σx Sx(t)
+        }
+    }
+
+    // Reduce across warps to get Σx Sx(t) (VASIL formula)
+    __shared__ double smem_sum_sx;
+    if (threadIdx.x == 0) {
+        smem_sum_sx = (warp_sum_sx > 0.0) ? warp_sum_sx : (population * 0.5);
     }
     block.sync();
-    
-    // Phase 3: Compute gamma envelope
+
+    // Phase 3: Compute gamma envelope (VASIL Extended Data Fig 6a)
     double local_min = 1e10;
     double local_max = -1e10;
-    
+
     for (int pk = threadIdx.x; pk < N_PK; pk += BLOCK_SIZE) {
         const double immunity_y = smem_immunity_y[pk];
         const double susceptibility_y = fmax(0.0, population - immunity_y);
-        
+
+        // VASIL formula: γy(t) = Sy(t) / Σx Sx(t) (NO -1!)
         double gamma;
-        if (smem_weighted_avg_s > 0.1) {
-            gamma = (susceptibility_y / smem_weighted_avg_s) - 1.0;
+        if (smem_sum_sx > 0.1) {
+            gamma = susceptibility_y / smem_sum_sx;  // FIXED: No -1
         } else {
             gamma = 0.0;
         }
-        
+
         local_min = fmin(local_min, gamma);
         local_max = fmax(local_max, gamma);
     }

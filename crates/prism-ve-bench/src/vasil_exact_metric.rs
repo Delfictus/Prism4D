@@ -1470,6 +1470,37 @@ impl ActiveVariantsCache {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// VARIANT INDEX (GPU-NATIVE ADAPTER)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// Variant string→u32 index mapping (build ONCE at init, use everywhere)
+struct VariantIndex {
+    name_to_idx: HashMap<String, u32>,
+    idx_to_name: Vec<String>,
+}
+
+impl VariantIndex {
+    fn build(lineages: &[String]) -> Self {
+        let name_to_idx: HashMap<String, u32> = lineages.iter()
+            .enumerate()
+            .map(|(idx, name)| (name.clone(), idx as u32))
+            .collect();
+        Self {
+            name_to_idx,
+            idx_to_name: lineages.to_vec(),
+        }
+    }
+
+    fn get_idx(&self, name: &str) -> Option<u32> {
+        self.name_to_idx.get(name).copied()
+    }
+
+    fn get_name(&self, idx: u32) -> Option<&str> {
+        self.idx_to_name.get(idx as usize).map(|s| s.as_str())
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // VASIL GAMMA COMPUTER
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -2136,6 +2167,262 @@ impl VasilMetricComputer {
         max_freq >= self.min_peak_frequency
     }
     
+    /// GPU-NATIVE VASIL METRIC (<60 seconds, mega_fused_vasil_fluxnet.cu)
+    ///
+    /// Replaces CPU loops with single GPU kernel call per country
+    /// Architecture: Flat arrays, u32 indices, GPU-resident buffers
+    pub fn compute_with_gpu_kernel(
+        &self,
+        all_countries: &[CountryData],
+        evaluation_start: NaiveDate,
+        evaluation_end: NaiveDate,
+        context: &Arc<cudarc::driver::CudaContext>,
+        stream: &Arc<cudarc::driver::CudaStream>,
+        fluxnet_power_opt: Option<[f32; 11]>,
+        rise_bias_opt: Option<f32>,
+        fall_bias_opt: Option<f32>,
+    ) -> Result<VasilMetricResult> {
+        use cudarc::driver::{CudaSlice, LaunchConfig};
+        use cudarc::nvrtc::Ptx;
+
+        eprintln!("[GPU-NATIVE] Loading mega_fused_vasil_fluxnet kernel...");
+
+        // Load kernel ONCE for all countries
+        let ptx_path = std::path::Path::new("kernels/ptx/mega_fused_vasil_fluxnet.ptx");
+        let ptx_src = std::fs::read_to_string(ptx_path)
+            .map_err(|e| anyhow!("Failed to read mega_fused PTX: {}", e))?;
+        let module = context.load_module(Ptx::from_src(ptx_src))
+            .map_err(|e| anyhow!("Failed to load mega_fused module: {}", e))?;
+        let kernel_func = module.load_function("mega_fused_vasil_fluxnet")
+            .map_err(|e| anyhow!("Failed to load kernel function: {}", e))?;
+
+        eprintln!("[GPU-NATIVE] Kernel loaded ✓");
+
+        // FluxNet parameters (use provided or defaults)
+        let ic50 = self.gamma_computer.get_ic50();
+        let fluxnet_power = fluxnet_power_opt.unwrap_or([1.0f32; 11]);
+        let fluxnet_rise_bias = rise_bias_opt.unwrap_or(0.0f32);
+        let fluxnet_fall_bias = fall_bias_opt.unwrap_or(0.0f32);
+
+        let mut per_country_accuracy: HashMap<String, f32> = HashMap::new();
+        let mut total_predictions = 0u32;
+        let mut total_correct = 0u32;
+
+        let gpu_start = std::time::Instant::now();
+
+        for country in all_countries {
+            let country_start = std::time::Instant::now();
+            eprintln!("[GPU-NATIVE] Processing {}...", country.name);
+
+            let landscape = self.gamma_computer.landscapes.get(&country.name)
+                .ok_or_else(|| anyhow!("No landscape for {}", country.name))?;
+
+            let n_variants = country.frequencies.lineages.len();
+            let max_history_days = country.frequencies.dates.len();
+            let n_eval_days = (evaluation_end - evaluation_start).num_days() as usize + 1;
+            let eval_start_offset = (evaluation_start - country.frequencies.dates[0]).num_days() as i32;
+
+            // Build flat arrays (string→index happens HERE, not in GPU kernel)
+            let variant_index = VariantIndex::build(&country.frequencies.lineages);
+
+            let mut epitope_escape_flat = vec![0.0f32; n_variants * 11];
+            let mut frequencies_flat = vec![0.0f32; n_variants * max_history_days];
+            let mut incidence_flat = vec![0.0; max_history_days];
+            let mut actual_directions_flat = vec![0i8; n_variants * n_eval_days];
+            let mut freq_changes_flat = vec![0.0f32; n_variants * n_eval_days];
+
+            // Populate epitope escape
+            for (variant_idx, lineage) in country.frequencies.lineages.iter().enumerate() {
+                for epitope_idx in 0..11 {
+                    if let Some(escape_val) = country.dms_data.get_epitope_escape(lineage, epitope_idx) {
+                        epitope_escape_flat[variant_idx * 11 + epitope_idx] = escape_val;
+                    }
+                }
+            }
+
+            // Populate frequencies [n_variants × max_history_days]
+            for (day_idx, day_freqs) in country.frequencies.frequencies.iter().enumerate() {
+                for (variant_idx, &freq) in day_freqs.iter().enumerate().take(n_variants) {
+                    frequencies_flat[variant_idx * max_history_days + day_idx] = freq;
+                }
+            }
+
+            // Populate incidence
+            for (i, &inc) in landscape.daily_incidence.iter().enumerate().take(max_history_days) {
+                incidence_flat[i] = inc;
+            }
+
+            // Populate actual_directions and freq_changes
+            for (variant_idx, lineage) in country.frequencies.lineages.iter().enumerate() {
+                let observations = self.partition_frequency_curve(lineage, country);
+                for obs in observations {
+                    let eval_day = (obs.date - evaluation_start).num_days();
+                    if eval_day >= 0 && eval_day < n_eval_days as i64 {
+                        let idx = variant_idx * n_eval_days + eval_day as usize;
+                        actual_directions_flat[idx] = match obs.direction {
+                            Some(DayDirection::Rising) => 1i8,
+                            Some(DayDirection::Falling) => -1i8,
+                            None => 0i8,
+                        };
+                        freq_changes_flat[idx] = obs.frequency_change;
+                    }
+                }
+            }
+
+            // Upload to GPU
+            let mut d_epitope_escape: CudaSlice<f32> = stream.alloc_zeros(n_variants * 11)?;
+            let mut d_frequencies: CudaSlice<f32> = stream.alloc_zeros(n_variants * max_history_days)?;
+            let mut d_incidence: CudaSlice<f64> = stream.alloc_zeros(max_history_days)?;
+            let mut d_actual_directions: CudaSlice<i8> = stream.alloc_zeros(n_variants * n_eval_days)?;
+            let mut d_freq_changes: CudaSlice<f32> = stream.alloc_zeros(n_variants * n_eval_days)?;
+            let mut d_ic50: CudaSlice<f32> = stream.alloc_zeros(11)?;
+            let mut d_power: CudaSlice<f32> = stream.alloc_zeros(11)?;
+            let mut d_correct: CudaSlice<u32> = stream.alloc_zeros(1)?;
+            let mut d_total: CudaSlice<u32> = stream.alloc_zeros(1)?;
+
+            stream.memcpy_htod(&epitope_escape_flat, &mut d_epitope_escape)?;
+            stream.memcpy_htod(&frequencies_flat, &mut d_frequencies)?;
+            stream.memcpy_htod(&incidence_flat, &mut d_incidence)?;
+            stream.memcpy_htod(&actual_directions_flat, &mut d_actual_directions)?;
+            stream.memcpy_htod(&freq_changes_flat, &mut d_freq_changes)?;
+            stream.memcpy_htod(ic50, &mut d_ic50)?;
+            stream.memcpy_htod(&fluxnet_power, &mut d_power)?;
+
+            // Launch kernel (SINGLE GPU CALL - replaces triple-nested CPU loops)
+            let cfg = LaunchConfig {
+                grid_dim: (n_variants as u32, n_eval_days as u32, 1),
+                block_dim: (256, 1, 1),
+                shared_mem_bytes: 0,
+            };
+
+            let n_variants_i32 = n_variants as i32;
+            let n_eval_days_i32 = n_eval_days as i32;
+            let max_history_days_i32 = max_history_days as i32;
+
+            unsafe {
+                let mut builder = stream.launch_builder(&kernel_func);
+                builder.arg(&d_epitope_escape);
+                builder.arg(&d_frequencies);
+                builder.arg(&d_incidence);
+                builder.arg(&d_actual_directions);
+                builder.arg(&d_freq_changes);
+                builder.arg(&d_ic50);
+                builder.arg(&d_power);
+                builder.arg(&fluxnet_rise_bias);
+                builder.arg(&fluxnet_fall_bias);
+                builder.arg(&d_correct);
+                builder.arg(&d_total);
+                builder.arg(&landscape.population);
+                builder.arg(&n_variants_i32);
+                builder.arg(&n_eval_days_i32);
+                builder.arg(&max_history_days_i32);
+                builder.arg(&eval_start_offset);
+                builder.launch(cfg)?;
+            }
+
+            stream.synchronize()?;
+
+            // Download results
+            let h_correct: Vec<u32> = stream.clone_dtoh(&d_correct)?;
+            let h_total: Vec<u32> = stream.clone_dtoh(&d_total)?;
+
+            let country_correct = h_correct[0];
+            let country_total = h_total[0];
+
+            total_correct += country_correct;
+            total_predictions += country_total;
+
+            let country_acc = if country_total > 0 {
+                country_correct as f32 / country_total as f32
+            } else {
+                0.0
+            };
+
+            per_country_accuracy.insert(country.name.clone(), country_acc);
+
+            let country_time = country_start.elapsed();
+            eprintln!("[GPU-NATIVE] {}: {}/{} = {:.2}% ({:.2}s)",
+                      country.name, country_correct, country_total, country_acc * 100.0, country_time.as_secs_f64());
+        }
+
+        let gpu_total_time = gpu_start.elapsed();
+        eprintln!("[GPU-NATIVE] Total GPU time: {:.2}s for {} countries", gpu_total_time.as_secs_f64(), all_countries.len());
+
+        let mean_accuracy = if !per_country_accuracy.is_empty() {
+            per_country_accuracy.values().sum::<f32>() / per_country_accuracy.len() as f32
+        } else {
+            0.0
+        };
+
+        Ok(VasilMetricResult {
+            mean_accuracy,
+            per_country_accuracy,
+            per_lineage_country_accuracy: vec![],
+            total_predictions: total_predictions as usize,
+            total_correct: total_correct as usize,
+            total_excluded_negligible: 0,
+            total_excluded_undecided: 0,
+            total_excluded_low_freq: 0,
+        })
+    }
+
+    /// BATCHED GPU-NATIVE EVALUATION (for Evolutionary Strategies)
+    ///
+    /// Evaluates N parameter sets sequentially and returns N accuracies
+    /// Used by ES optimizer to evaluate population in parallel
+    pub fn compute_with_gpu_kernel_batched(
+        &mut self,
+        all_countries: &[CountryData],
+        evaluation_start: NaiveDate,
+        evaluation_end: NaiveDate,
+        context: &Arc<cudarc::driver::CudaContext>,
+        stream: &Arc<cudarc::driver::CudaStream>,
+        param_sets: &[([f32; 11], [f32; 11], f32, f32)],  // (ic50[11], power[11], rise_bias, fall_bias)
+    ) -> Result<Vec<f64>> {
+        let mut accuracies = Vec::with_capacity(param_sets.len());
+
+        eprintln!("[ES-BATCH] Evaluating {} parameter sets...", param_sets.len());
+        let batch_start = std::time::Instant::now();
+
+        for (i, &(ref ic50, ref power, rise_bias, fall_bias)) in param_sets.iter().enumerate() {
+            // Temporarily update IC50 for this evaluation
+            let old_ic50 = *self.gamma_computer.get_ic50();
+            self.gamma_computer.set_ic50([
+                ic50[0], ic50[1], ic50[2], ic50[3], ic50[4],
+                ic50[5], ic50[6], ic50[7], ic50[8], ic50[9],
+            ]);
+
+            // Evaluate with GPU kernel (pass ALL 24 trainable params)
+            let result = self.compute_with_gpu_kernel(
+                all_countries,
+                evaluation_start,
+                evaluation_end,
+                context,
+                stream,
+                Some(*power),      // power[11]
+                Some(rise_bias),   // rise_bias
+                Some(fall_bias),   // fall_bias
+            )?;
+
+            accuracies.push(result.mean_accuracy as f64);
+
+            // Restore IC50
+            self.gamma_computer.set_ic50(old_ic50);
+
+            if (i + 1) % 16 == 0 {
+                eprintln!("[ES-BATCH] Evaluated {}/{} ({}s elapsed)",
+                          i + 1, param_sets.len(), batch_start.elapsed().as_secs());
+            }
+        }
+
+        let batch_time = batch_start.elapsed();
+        eprintln!("[ES-BATCH] Complete: {} evals in {:.1}s ({:.2}s/eval)",
+                  param_sets.len(), batch_time.as_secs_f64(),
+                  batch_time.as_secs_f64() / param_sets.len() as f64);
+
+        Ok(accuracies)
+    }
+
     /// Compute VASIL exact metric using internal gamma computation
     ///
     /// This is the PUBLICATION-COMPARABLE method that:

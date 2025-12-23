@@ -220,21 +220,21 @@ pub struct DmsEscapeData {
 }
 
 impl DmsEscapeData {
-    /// Create empty fallback
+    /// Create empty DmsEscapeData - PRODUCTION: Should never be used (must load real data)
     pub fn empty() -> Self {
-        Self {
+        panic!("DmsEscapeData::empty() called - PRODUCTION VIOLATION: Must load real DMS data from VASIL files")
+    }
+
+    /// Load from VASIL directory
+    pub fn load_from_vasil(vasil_dir: &Path, country: &str) -> Result<Self> {
+        let mut result = Self {
             escape_by_site: vec![vec![0.0; 201]; 10],
             raw_escape: Vec::new(),
             antibody_epitope: Vec::new(),
             lineage_mutations: HashMap::new(),
             n_antibodies: 0,
             real_data_loaded: false,
-        }
-    }
-
-    /// Load from VASIL directory
-    pub fn load_from_vasil(vasil_dir: &Path, country: &str) -> Result<Self> {
-        let mut result = Self::empty();
+        };
 
         // Normalize country name for file paths
         let country_normalized = match country {
@@ -479,10 +479,7 @@ impl DmsEscapeData {
         }
 
         if !self.real_data_loaded {
-            // Hash fallback
-            let hash = lineage.bytes().fold(0u64, |acc, b| acc.wrapping_mul(31).wrapping_add(b as u64));
-            let ep_hash = hash.wrapping_add(epitope_idx as u64 * 12345);
-            return Some(((ep_hash % 1000) as f32 / 1000.0) * 0.15);
+            panic!("PRODUCTION VIOLATION: get_epitope_escape called with no real data loaded. Must load DMS data from VASIL files first.");
         }
 
         // Get mutations for this lineage
@@ -514,9 +511,12 @@ impl DmsEscapeData {
         Some(if count > 0 { total / count as f32 } else { 0.0 })
     }
 
-    /// Get NTD escape (stub for compatibility)
-    pub fn get_ntd_escape(&self, _lineage: &str) -> Option<f64> {
-        Some(0.4)
+    /// Get NTD escape - PRODUCTION: Not implemented (N-terminal domain escape not in VASIL dataset)
+    pub fn get_ntd_escape(&self, lineage: &str) -> Option<f64> {
+        // NTD escape data not available in VASIL DMS dataset (only RBD epitopes A-F)
+        // If this is called in production GPU path, we have a problem
+        eprintln!("[WARNING] get_ntd_escape called for {} - NTD not in VASIL DMS data", lineage);
+        None  // Return None instead of fake 0.4
     }
 
     pub fn has_real_data(&self) -> bool { self.real_data_loaded }

@@ -537,8 +537,8 @@ impl ImmunityDynamics {
         } else if data_dir.join("../../data/pk_parameters.json").exists() {
             data_dir.join("../../data/pk_parameters.json")
         } else {
-            // Use absolute path
-            Path::new("/mnt/c/Users/Predator/Desktop/prism-ve/data/pk_parameters.json").to_path_buf()
+            // Fallback to data dir
+            Path::new("data/pk_parameters.json").to_path_buf()
         };
 
         let pk_file_data = PKParametersFile::load(&pk_file)?;
@@ -557,8 +557,8 @@ impl ImmunityDynamics {
         } else if data_dir.join("../../data/cross_immunity_per_variant.json").exists() {
             Some(data_dir.join("../../data/cross_immunity_per_variant.json"))
         } else {
-            let abs_path = Path::new("/mnt/c/Users/Predator/Desktop/prism-ve/data/cross_immunity_per_variant.json");
-            if abs_path.exists() { Some(abs_path.to_path_buf()) } else { None }
+            let fallback = Path::new("data/cross_immunity_per_variant.json");
+            if fallback.exists() { Some(fallback.to_path_buf()) } else { None }
         };
 
         let cross_reactivity = cross_react_file

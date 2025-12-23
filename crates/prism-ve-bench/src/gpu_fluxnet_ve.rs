@@ -105,9 +105,9 @@ impl GpuFluxNetVE {
     ) -> Result<Self> {
         let n_configs = n_configs.min(MAX_CONFIGS);
         
-        let ptx_path = std::path::Path::new("kernels/ptx/gpu_fluxnet_ve_batch.ptx");
+        let ptx_path = std::path::Path::new("kernels/ptx/mega_fused_vasil_fluxnet.ptx");
         if !ptx_path.exists() {
-            bail!("PTX not found: {:?}. Compile with: nvcc -ptx gpu_fluxnet_ve_batch.cu", ptx_path);
+            bail!("PTX not found: {:?}. Compile with: nvcc -ptx mega_fused_vasil_fluxnet.cu", ptx_path);
         }
         
         let ptx_src = std::fs::read_to_string(ptx_path)?;
