@@ -5,8 +5,8 @@
 // ╔═══════════════════════════════════════════════════════════════════════════╗
 // ║  FLUXNET-TRAINABLE PARAMETERS (optimized by RL)                           ║
 // ╠═══════════════════════════════════════════════════════════════════════════╣
-// ║  1. fluxnet_ic50[11]        - Epitope binding affinities                  ║
-// ║  2. fluxnet_epitope_power[11] - Epitope contribution exponents            ║
+// ║  1. fluxnet_ic50[10]        - Epitope binding affinities (10 classes)    ║
+// ║  2. fluxnet_epitope_power[10] - Epitope contribution exponents           ║
 // ║  3. fluxnet_rise_bias       - Threshold bias for RISE predictions         ║
 // ║  4. fluxnet_fall_bias       - Threshold bias for FALL predictions         ║
 // ╚═══════════════════════════════════════════════════════════════════════════╝
@@ -36,13 +36,14 @@ namespace cg = cooperative_groups;
 #define DEBUG_VARIANT 0    // Debug first variant only
 #define DEBUG_DAY 0        // Debug first eval day only
 #define DEBUG_PK 37        // Debug middle PK combination
-#define ENABLE_DEBUG 1     // Set to 0 to disable all debug output
+#define ENABLE_DEBUG 0     // Set to 0 to disable all debug output
 
 constexpr int MAX_DELTA_DAYS = 1500;
-constexpr int N_EPITOPES = 11;
+constexpr int N_EPITOPES = 10;  // VASIL uses 10 epitope classes (A,B,C,D1,D2,E1,E2,E3,F1,F2)
 constexpr int N_PK = 75;
 constexpr int BLOCK_SIZE = 256;
 constexpr int WARP_SIZE = 32;
+constexpr int WARPS_PER_BLOCK = 8;  // 256 threads / 32
 
 constexpr float NEGLIGIBLE_CHANGE_THRESHOLD = 0.05f;
 constexpr float MIN_FREQUENCY_THRESHOLD = 0.03f;
@@ -56,25 +57,26 @@ __constant__ float c_thalf[15] = {
 };
 
 // Default IC50 (VASIL-calibrated baseline, FluxNet starts here)
-__constant__ float c_baseline_ic50[11] = {
+// 10 epitope classes: A, B, C, D1, D2, E1, E2, E3, F1, F2
+__constant__ float c_baseline_ic50[10] = {
     0.85f, 1.12f, 0.93f, 1.05f, 0.98f,
-    1.21f, 0.89f, 1.08f, 0.95f, 1.03f, 1.00f
+    1.21f, 0.89f, 1.08f, 0.95f, 1.03f
 };
 
 // Default epitope power (uniform = 1.0, FluxNet learns deviations)
-__constant__ float c_baseline_power[11] = {
+__constant__ float c_baseline_power[10] = {
     1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-    1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f
+    1.0f, 1.0f, 1.0f, 1.0f, 1.0f
 };
 
 //=============================================================================
 // FluxNet Parameters Structure (passed to kernel)
 //=============================================================================
 struct FluxNetParams {
-    float ic50[N_EPITOPES];           // Trained binding affinities
-    float epitope_power[N_EPITOPES];  // Trained contribution exponents
-    float rise_bias;                  // Trained RISE threshold adjustment
-    float fall_bias;                  // Trained FALL threshold adjustment
+    float ic50[10];           // Trained binding affinities (10 epitope classes)
+    float epitope_power[10];  // Trained contribution exponents
+    float rise_bias;          // Trained RISE threshold adjustment
+    float fall_bias;          // Trained FALL threshold adjustment
 };
 
 //=============================================================================
@@ -115,10 +117,24 @@ __device__ __forceinline__ float compute_p_neut_fluxnet(
     c_t = fmaxf(0.0f, c_t);
     
     if (c_t < 1e-8f) return 0.0f;
-    
+
+    #if ENABLE_DEBUG
+    if (pk_idx == DEBUG_PK && delta_t == 1) {
+        printf("=== CHECKPOINT 3: After computing c(t) ===\n");
+        printf("  delta_t=%d, pk_idx=%d, c_t=%.6f\n", delta_t, pk_idx, c_t);
+        printf("  tmax=%.2f, thalf=%.2f, ke=%.6f, ka=%.6f\n", tmax, thalf, ke, ka);
+    }
+    #endif
+
     // P_neut with FluxNet-trained IC50 and epitope powers
     float log_product = 0.0f;
-    
+
+    #if ENABLE_DEBUG
+    if (pk_idx == DEBUG_PK && delta_t == 1) {
+        printf("=== P_NEUT ACCUMULATION START (delta_t=%d, pk=%d) ===\n", delta_t, pk_idx);
+    }
+    #endif
+
     #pragma unroll
     for (int e = 0; e < N_EPITOPES; e++) {
         // Fold resistance (data-driven from DMS escape)
@@ -129,7 +145,15 @@ __device__ __forceinline__ float compute_p_neut_fluxnet(
             fold_res = 1.0f + escape_y[e];
         }
         fold_res = fmaxf(0.1f, fminf(fold_res, 100.0f));
-        
+
+        #if ENABLE_DEBUG
+        if (pk_idx == DEBUG_PK && delta_t == 1 && e == 0) {
+            printf("=== CHECKPOINT 2: After computing fold resistance ===\n");
+            printf("  epitope=%d, escape_x[0]=%.4f, escape_y[0]=%.4f, fold_res=%.4f\n",
+                   e, escape_x[e], escape_y[e], fold_res);
+        }
+        #endif
+
         // FluxNet-trained IC50 (or baseline if NULL)
         const float ic50_e = (fluxnet_ic50 != nullptr) ? fluxnet_ic50[e] : c_baseline_ic50[e];
         
@@ -143,10 +167,29 @@ __device__ __forceinline__ float compute_p_neut_fluxnet(
         // P_neut = 1 - Π_θ (1 - b_θ)^power_θ
         // Using log for numerical stability: log(1-b)^p = p * log(1-b)
         const float one_minus_b = fmaxf(1e-10f, 1.0f - b_theta);
-        log_product += power_e * __logf(one_minus_b);
+        const float log_contrib = power_e * __logf(one_minus_b);
+        log_product += log_contrib;
+
+        #if ENABLE_DEBUG
+        if (pk_idx == DEBUG_PK && delta_t == 1) {
+            printf("  epitope[%d]: escape_x=%.4f, escape_y=%.4f, FR=%.4f, b_theta=%.6f\n",
+                   e, escape_x[e], escape_y[e], fold_res, b_theta);
+            printf("             power=%.2f, (1-b)=%.6f, log(1-b)=%.6f, contrib=%.6f, running_sum=%.6f\n",
+                   power_e, one_minus_b, __logf(one_minus_b), log_contrib, log_product);
+        }
+        #endif
     }
-    
-    return 1.0f - __expf(log_product);
+
+    const float p_neut_result = 1.0f - __expf(log_product);
+
+    #if ENABLE_DEBUG
+    if (pk_idx == DEBUG_PK && delta_t == 1) {
+        printf("=== P_NEUT FINAL: log_product=%.6f, exp(log)=%.6e, P_neut=%.6f ===\n",
+               log_product, __expf(log_product), p_neut_result);
+    }
+    #endif
+
+    return p_neut_result;
 }
 
 //=============================================================================
@@ -237,20 +280,37 @@ extern "C" __global__ void mega_fused_vasil_fluxnet(
 ) {
     const int y_idx = blockIdx.x;
     const int t_eval = blockIdx.y;
-    
+
     if (y_idx >= n_variants || t_eval >= n_eval_days) return;
-    
+
     const int t_abs = eval_start_offset + t_eval;
     if (t_abs >= max_history_days || t_abs < 1) return;
-    
+
+    #if ENABLE_DEBUG
+    if (y_idx == DEBUG_VARIANT && t_eval == DEBUG_DAY && threadIdx.x == 0) {
+        printf("\n=== CHECKPOINT 1: After loading inputs ===\n");
+        printf("  y_idx=%d, t_eval=%d, t_abs=%d\n", y_idx, t_eval, t_abs);
+        printf("  n_variants=%d, n_eval_days=%d, max_history_days=%d\n",
+               n_variants, n_eval_days, max_history_days);
+        printf("  population=%.0f, eval_start_offset=%d\n", population, eval_start_offset);
+    }
+    #endif
+
     // Check VASIL exclusion criteria (data-driven)
     const int sample_idx = y_idx * n_eval_days + t_eval;
     const int8_t actual_dir = actual_directions[sample_idx];
     const float rel_change = freq_changes[sample_idx];
     
+    #if ENABLE_DEBUG
+    if (y_idx == DEBUG_VARIANT && t_eval == DEBUG_DAY && threadIdx.x == 0) {
+        printf("=== CHECKPOINT 9: After loading actual freq_change ===\n");
+        printf("  actual_dir=%d, rel_change=%.6f\n", (int)actual_dir, rel_change);
+    }
+    #endif
+
     if (actual_dir == 0) return;  // Pre-excluded
     if (fabsf(rel_change) < NEGLIGIBLE_CHANGE_THRESHOLD) return;
-    
+
     const float current_freq = frequencies[y_idx * max_history_days + t_abs];
     if (current_freq < MIN_FREQUENCY_THRESHOLD) return;
     
@@ -270,6 +330,13 @@ extern "C" __global__ void mega_fused_vasil_fluxnet(
         smem_escape_y[threadIdx.x] = epitope_escape[y_idx * N_EPITOPES + threadIdx.x];
     }
     block.sync();
+
+    #if ENABLE_DEBUG
+    if (y_idx == DEBUG_VARIANT && t_eval == DEBUG_DAY && threadIdx.x == 0) {
+        printf("  Loaded ic50[0]=%.4f, power[0]=%.4f, escape_y[0]=%.4f\n",
+               smem_ic50[0], smem_power[0], smem_escape_y[0]);
+    }
+    #endif
     
     // Compute gamma envelope across all 75 PK combinations
     const int warps_per_block = BLOCK_SIZE / WARP_SIZE;
@@ -290,82 +357,128 @@ extern "C" __global__ void mega_fused_vasil_fluxnet(
         }
     }
     block.sync();
+
+    #if ENABLE_DEBUG
+    if (y_idx == DEBUG_VARIANT && t_eval == DEBUG_DAY && threadIdx.x == 0) {
+        printf("=== CHECKPOINT 5: After immunity integral loop ===\n");
+        printf("  immunity_y[pk=37]=%.6f (from %d PK combinations)\n",
+               smem_immunity_y[37], N_PK);
+    }
+    #endif
     
-    // Phase 2: Compute Σx Sx(t) per VASIL formula (Extended Data Fig 6a)
-    // BUGFIX: Must compute immunity_x for EACH variant x (not reuse immunity_y!)
+    // Phase 2: Compute Σx Sx(t, pk) per VASIL formula for EACH of 75 PK combinations
+    // CRITICAL: Each PK has different pharmacokinetics → different immunity → different denominator
+    __shared__ double smem_sum_sx_pk[N_PK];
 
-    // Warp-parallel computation of Σx Sx(t)
-    double warp_sum_sx = 0.0;
+    for (int pk = 0; pk < N_PK; pk++) {
+        double warp_sum_sx = 0.0;
 
-    // Each warp processes variants in parallel
-    for (int x_base = 0; x_base < n_variants; x_base += warps_per_block) {
-        const int x = x_base + warp_id;
-        if (x >= n_variants) break;
+        // Each warp processes variants in parallel
+        for (int x_base = 0; x_base < n_variants; x_base += warps_per_block) {
+            const int x = x_base + warp_id;
+            if (x >= n_variants) break;
 
-        const float freq_x = frequencies[x * max_history_days + t_abs];
-        if (freq_x < 0.001f) continue;
+            const float freq_x = frequencies[x * max_history_days + t_abs];
+            if (freq_x < 0.001f) continue;
 
-        // Compute immunity_x using this warp (middle PK = 37)
-        double immunity_x = 0.0;
-        for (int s = warp.thread_rank(); s < t_abs && s < max_history_days; s += WARP_SIZE) {
-            const int delta_t = t_abs - s;
-            if (delta_t <= 0) continue;
-            const double inc = incidence[s];
-            if (inc < 1.0) continue;
+            // Compute immunity_x using THIS pk (not hardcoded 37)
+            double immunity_x = 0.0;
+            for (int s = warp.thread_rank(); s < t_abs && s < max_history_days; s += WARP_SIZE) {
+                const int delta_t = t_abs - s;
+                if (delta_t <= 0) continue;
+                const double inc = incidence[s];
+                if (inc < 1.0) continue;
 
-            for (int x2 = 0; x2 < n_variants; x2++) {
-                const float freq_x2 = frequencies[x2 * max_history_days + s];
-                if (freq_x2 < 0.001f) continue;
+                for (int x2 = 0; x2 < n_variants; x2++) {
+                    const float freq_x2 = frequencies[x2 * max_history_days + s];
+                    if (freq_x2 < 0.001f) continue;
 
-                float escape_x2[N_EPITOPES], escape_x[N_EPITOPES];
-                for (int e = 0; e < N_EPITOPES; e++) {
-                    escape_x2[e] = epitope_escape[x2 * N_EPITOPES + e];
-                    escape_x[e] = epitope_escape[x * N_EPITOPES + e];
+                    float escape_x2[N_EPITOPES], escape_x[N_EPITOPES];
+                    for (int e = 0; e < N_EPITOPES; e++) {
+                        escape_x2[e] = epitope_escape[x2 * N_EPITOPES + e];
+                        escape_x[e] = epitope_escape[x * N_EPITOPES + e];
+                    }
+
+                    // Use pk from outer loop (not hardcoded 37)
+                    const float p_neut = compute_p_neut_fluxnet(
+                        escape_x2, escape_x, fluxnet_ic50, fluxnet_power, delta_t, pk
+                    );
+
+                    if (p_neut > 1e-8f) {
+                        immunity_x += (double)freq_x2 * inc * (double)p_neut;
+                    }
                 }
+            }
 
-                const float p_neut = compute_p_neut_fluxnet(
-                    escape_x2, escape_x, fluxnet_ic50, fluxnet_power, delta_t, 37
-                );
+            // Warp reduction
+            for (int offset = WARP_SIZE / 2; offset > 0; offset /= 2) {
+                immunity_x += warp.shfl_down(immunity_x, offset);
+            }
 
-                if (p_neut > 1e-8f) {
-                    immunity_x += (double)freq_x2 * inc * (double)p_neut;
-                }
+            if (warp.thread_rank() == 0 && x < n_variants) {
+                const double susceptibility_x = fmax(0.0, population - immunity_x);
+                warp_sum_sx += susceptibility_x;  // VASIL: Σx Sx(t, pk)
             }
         }
 
-        // Warp reduction
-        for (int offset = WARP_SIZE / 2; offset > 0; offset /= 2) {
-            immunity_x += warp.shfl_down(immunity_x, offset);
+        // Reduce across warps to get Σx Sx(t, pk) for THIS PK
+        __shared__ double smem_warp_sums[WARPS_PER_BLOCK];
+        const int warp_id_sx = threadIdx.x / WARP_SIZE;
+        if (warp.thread_rank() == 0) {
+            smem_warp_sums[warp_id_sx] = warp_sum_sx;
         }
+        block.sync();
 
-        if (warp.thread_rank() == 0 && x < n_variants) {
-            const double susceptibility_x = fmax(0.0, population - immunity_x);
-            warp_sum_sx += susceptibility_x;  // VASIL: Σx Sx(t)
+        // Thread 0 reduces all warp sums for this PK (NO FALLBACK)
+        if (threadIdx.x == 0) {
+            double total_sum_sx = 0.0;
+            for (int w = 0; w < WARPS_PER_BLOCK; w++) {
+                total_sum_sx += smem_warp_sums[w];
+            }
+
+            // NO FALLBACK — log and set to small value to avoid NaN
+            if (total_sum_sx <= 0.0) {
+                printf("ERROR: pk=%d sum_sx=%.6f ≤ 0! Setting to 0.1\n", pk, total_sum_sx);
+                total_sum_sx = 0.1;  // Avoid division by zero
+            }
+
+            smem_sum_sx_pk[pk] = total_sum_sx;
         }
+        block.sync();
     }
-
-    // Reduce across warps to get Σx Sx(t) (VASIL formula)
-    __shared__ double smem_sum_sx;
-    if (threadIdx.x == 0) {
-        smem_sum_sx = (warp_sum_sx > 0.0) ? warp_sum_sx : (population * 0.5);
-    }
-    block.sync();
 
     // Phase 3: Compute gamma envelope (VASIL Extended Data Fig 6a)
+    // Use pk-specific denominators smem_sum_sx_pk[pk]
     double local_min = 1e10;
     double local_max = -1e10;
 
     for (int pk = threadIdx.x; pk < N_PK; pk += BLOCK_SIZE) {
         const double immunity_y = smem_immunity_y[pk];
         const double susceptibility_y = fmax(0.0, population - immunity_y);
+        const double sum_sx_for_pk = smem_sum_sx_pk[pk];  // PK-specific denominator
 
-        // VASIL formula: γy(t) = Sy(t) / Σx Sx(t) (NO -1!)
-        double gamma;
-        if (smem_sum_sx > 0.1) {
-            gamma = susceptibility_y / smem_sum_sx;  // FIXED: No -1
-        } else {
-            gamma = 0.0;
+        #if ENABLE_DEBUG
+        if (y_idx == DEBUG_VARIANT && t_eval == DEBUG_DAY && pk == DEBUG_PK) {
+            printf("=== CHECKPOINT 6: After computing Sy ===\n");
+            printf("  pk=%d, immunity_y=%.6f, susceptibility_y=%.6f, sum_sx_pk=%.6f\n",
+                   pk, immunity_y, susceptibility_y, sum_sx_for_pk);
         }
+        #endif
+
+        // VASIL formula: γy(t, pk) = Sy(t, pk) / Σx Sx(t, pk)
+        double gamma;
+        if (sum_sx_for_pk > 0.1) {
+            gamma = susceptibility_y / sum_sx_for_pk;
+        } else {
+            gamma = 0.0;  // Avoid NaN
+        }
+
+        #if ENABLE_DEBUG
+        if (y_idx == DEBUG_VARIANT && t_eval == DEBUG_DAY && pk == DEBUG_PK) {
+            printf("=== CHECKPOINT 8: After computing gamma ===\n");
+            printf("  pk=%d, gamma=%.6f (Sy/sum_sx_pk)\n", pk, gamma);
+        }
+        #endif
 
         local_min = fmin(local_min, gamma);
         local_max = fmax(local_max, gamma);
@@ -392,13 +505,18 @@ extern "C" __global__ void mega_fused_vasil_fluxnet(
         const double gamma_max = smem_max[0];
         
         int8_t predicted_dir;
-        // FluxNet-trained thresholds (not fixed at 0.0)
-        if (gamma_min > (double)fluxnet_rise_bias && gamma_max > (double)fluxnet_rise_bias) {
-            predicted_dir = 1;  // RISE
-        } else if (gamma_min < (double)fluxnet_fall_bias && gamma_max < (double)fluxnet_fall_bias) {
-            predicted_dir = -1; // FALL
+        // VASIL logic: γy > 1.0 → variant grows, γy < 1.0 → variant declines
+        // RISE: gamma_max > threshold (best-case PK shows growth potential)
+        // FALL: gamma_min < threshold (worst-case PK shows decline)
+        const double rise_threshold = 1.0 + (double)fluxnet_rise_bias;
+        const double fall_threshold = 1.0 + (double)fluxnet_fall_bias;
+
+        if (gamma_max > rise_threshold) {
+            predicted_dir = 1;  // RISE (at least one PK shows growth)
+        } else if (gamma_min < fall_threshold) {
+            predicted_dir = -1; // FALL (all PKs show decline)
         } else {
-            predicted_dir = 0;  // UNDECIDED
+            predicted_dir = 0;  // UNDECIDED (gamma straddles threshold)
         }
         
         if (predicted_dir != 0) {
@@ -407,6 +525,17 @@ extern "C" __global__ void mega_fused_vasil_fluxnet(
                 atomicAdd(correct_count, 1u);
             }
         }
+
+        #if ENABLE_DEBUG
+        if (y_idx == DEBUG_VARIANT && t_eval == DEBUG_DAY) {
+            printf("=== CHECKPOINT 10: After comparing prediction vs actual ===\n");
+            printf("  gamma_min=%.6f, gamma_max=%.6f\n", gamma_min, gamma_max);
+            printf("  rise_bias=%.6f, fall_bias=%.6f\n", (double)fluxnet_rise_bias, (double)fluxnet_fall_bias);
+            printf("  predicted_dir=%d, actual_dir=%d, MATCH=%s\n",
+                   (int)predicted_dir, (int)actual_dir,
+                   (predicted_dir == actual_dir) ? "YES" : "NO");
+        }
+        #endif
     }
 }
 

@@ -1573,16 +1573,14 @@ impl VasilGammaComputer {
         dms_data: &DmsEscapeData,
         landscapes: HashMap<String, ImmunityLandscape>,
     ) {
-        // Collect all lineages across countries
-        let mut all_lineages: Vec<String> = landscapes.values()
-            .flat_map(|l| l.lineages.clone())
-            .collect();
-        all_lineages.sort();
-        all_lineages.dedup();
+        // GPU-NATIVE PATH: Skip FoldResistanceMatrix precomputation
+        // The GPU kernel computes fold resistance on-the-fly from raw escape data
+        // FoldResistanceMatrix is ONLY needed for legacy CPU path (not used)
 
-        self.fold_resistance = FoldResistanceMatrix::from_dms_data(dms_data, &all_lineages);
+        // Keep fold_resistance empty (GPU doesn't use it)
+        self.fold_resistance = FoldResistanceMatrix::new();
         self.landscapes = landscapes;
-        self.immunity_cache = None;  // Will build on first use
+        self.immunity_cache = None;
     }
 
     /// Build immunity cache for fast gamma lookups (FIX#3)
@@ -2049,6 +2047,7 @@ impl VasilMetricComputer {
         dms_data: &DmsEscapeData,
         landscapes: HashMap<String, ImmunityLandscape>,
     ) {
+        // GPU-NATIVE: Skip O(N²) CPU precomputation
         self.gamma_computer.initialize(dms_data, landscapes);
     }
 
@@ -2178,7 +2177,7 @@ impl VasilMetricComputer {
         evaluation_end: NaiveDate,
         context: &Arc<cudarc::driver::CudaContext>,
         stream: &Arc<cudarc::driver::CudaStream>,
-        fluxnet_power_opt: Option<[f32; 11]>,
+        fluxnet_power_opt: Option<[f32; 10]>,
         rise_bias_opt: Option<f32>,
         fall_bias_opt: Option<f32>,
     ) -> Result<VasilMetricResult> {
@@ -2200,7 +2199,7 @@ impl VasilMetricComputer {
 
         // FluxNet parameters (use provided or defaults)
         let ic50 = self.gamma_computer.get_ic50();
-        let fluxnet_power = fluxnet_power_opt.unwrap_or([1.0f32; 11]);
+        let fluxnet_power = fluxnet_power_opt.unwrap_or([1.0f32; 10]);
         let fluxnet_rise_bias = rise_bias_opt.unwrap_or(0.0f32);
         let fluxnet_fall_bias = fall_bias_opt.unwrap_or(0.0f32);
 
@@ -2217,33 +2216,41 @@ impl VasilMetricComputer {
             let landscape = self.gamma_computer.landscapes.get(&country.name)
                 .ok_or_else(|| anyhow!("No landscape for {}", country.name))?;
 
-            let n_variants = country.frequencies.lineages.len();
+            // Filter to major variants ONLY (peak freq ≥ min_peak_frequency)
+            let major_lineages: Vec<(usize, &String)> = country.frequencies.lineages.iter()
+                .enumerate()
+                .filter(|(_idx, lineage)| self.is_major_variant(lineage, country))
+                .collect();
+
+            let n_variants = major_lineages.len();  // Only major variants
             let max_history_days = country.frequencies.dates.len();
             let n_eval_days = (evaluation_end - evaluation_start).num_days() as usize + 1;
             let eval_start_offset = (evaluation_start - country.frequencies.dates[0]).num_days() as i32;
 
-            // Build flat arrays (string→index happens HERE, not in GPU kernel)
-            let variant_index = VariantIndex::build(&country.frequencies.lineages);
+            eprintln!("[GPU-NATIVE] {}: {} major variants (of {} total)",
+                      country.name, n_variants, country.frequencies.lineages.len());
 
-            let mut epitope_escape_flat = vec![0.0f32; n_variants * 11];
+            let mut epitope_escape_flat = vec![0.0f32; n_variants * 10];
             let mut frequencies_flat = vec![0.0f32; n_variants * max_history_days];
             let mut incidence_flat = vec![0.0; max_history_days];
             let mut actual_directions_flat = vec![0i8; n_variants * n_eval_days];
             let mut freq_changes_flat = vec![0.0f32; n_variants * n_eval_days];
 
-            // Populate epitope escape
-            for (variant_idx, lineage) in country.frequencies.lineages.iter().enumerate() {
-                for epitope_idx in 0..11 {
+            // Populate epitope escape (10 epitope classes: A,B,C,D1,D2,E1,E2,E3,F1,F2)
+            // ONLY for major variants
+            for (new_idx, (orig_idx, lineage)) in major_lineages.iter().enumerate() {
+                for epitope_idx in 0..10 {
                     if let Some(escape_val) = country.dms_data.get_epitope_escape(lineage, epitope_idx) {
-                        epitope_escape_flat[variant_idx * 11 + epitope_idx] = escape_val;
+                        epitope_escape_flat[new_idx * 10 + epitope_idx] = escape_val;
                     }
                 }
             }
 
             // Populate frequencies [n_variants × max_history_days]
+            // Map from original indices to new major-only indices
             for (day_idx, day_freqs) in country.frequencies.frequencies.iter().enumerate() {
-                for (variant_idx, &freq) in day_freqs.iter().enumerate().take(n_variants) {
-                    frequencies_flat[variant_idx * max_history_days + day_idx] = freq;
+                for (new_idx, (orig_idx, _lineage)) in major_lineages.iter().enumerate() {
+                    frequencies_flat[new_idx * max_history_days + day_idx] = day_freqs[*orig_idx];
                 }
             }
 
@@ -2252,13 +2259,13 @@ impl VasilMetricComputer {
                 incidence_flat[i] = inc;
             }
 
-            // Populate actual_directions and freq_changes
-            for (variant_idx, lineage) in country.frequencies.lineages.iter().enumerate() {
+            // Populate actual_directions and freq_changes (ONLY for major variants)
+            for (new_idx, (_orig_idx, lineage)) in major_lineages.iter().enumerate() {
                 let observations = self.partition_frequency_curve(lineage, country);
                 for obs in observations {
                     let eval_day = (obs.date - evaluation_start).num_days();
                     if eval_day >= 0 && eval_day < n_eval_days as i64 {
-                        let idx = variant_idx * n_eval_days + eval_day as usize;
+                        let idx = new_idx * n_eval_days + eval_day as usize;
                         actual_directions_flat[idx] = match obs.direction {
                             Some(DayDirection::Rising) => 1i8,
                             Some(DayDirection::Falling) => -1i8,
@@ -2270,13 +2277,13 @@ impl VasilMetricComputer {
             }
 
             // Upload to GPU
-            let mut d_epitope_escape: CudaSlice<f32> = stream.alloc_zeros(n_variants * 11)?;
+            let mut d_epitope_escape: CudaSlice<f32> = stream.alloc_zeros(n_variants * 10)?;
             let mut d_frequencies: CudaSlice<f32> = stream.alloc_zeros(n_variants * max_history_days)?;
             let mut d_incidence: CudaSlice<f64> = stream.alloc_zeros(max_history_days)?;
             let mut d_actual_directions: CudaSlice<i8> = stream.alloc_zeros(n_variants * n_eval_days)?;
             let mut d_freq_changes: CudaSlice<f32> = stream.alloc_zeros(n_variants * n_eval_days)?;
-            let mut d_ic50: CudaSlice<f32> = stream.alloc_zeros(11)?;
-            let mut d_power: CudaSlice<f32> = stream.alloc_zeros(11)?;
+            let mut d_ic50: CudaSlice<f32> = stream.alloc_zeros(10)?;
+            let mut d_power: CudaSlice<f32> = stream.alloc_zeros(10)?;
             let mut d_correct: CudaSlice<u32> = stream.alloc_zeros(1)?;
             let mut d_total: CudaSlice<u32> = stream.alloc_zeros(1)?;
 
@@ -2377,7 +2384,7 @@ impl VasilMetricComputer {
         evaluation_end: NaiveDate,
         context: &Arc<cudarc::driver::CudaContext>,
         stream: &Arc<cudarc::driver::CudaStream>,
-        param_sets: &[([f32; 11], [f32; 11], f32, f32)],  // (ic50[11], power[11], rise_bias, fall_bias)
+        param_sets: &[([f32; 10], [f32; 10], f32, f32)],  // (ic50[10], power[10], rise_bias, fall_bias)
     ) -> Result<Vec<f64>> {
         let mut accuracies = Vec::with_capacity(param_sets.len());
 

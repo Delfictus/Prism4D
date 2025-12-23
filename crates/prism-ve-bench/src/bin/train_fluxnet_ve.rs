@@ -149,8 +149,8 @@ const ES_LEARNING_RATE: f64 = 0.02;  // Gradient step size
 
 #[derive(Clone)]
 struct StructuredParams {
-    log_ic50: [f64; 11],    // LOG SPACE for numerical stability
-    power: [f64; 11],       // Linear space
+    log_ic50: [f64; 10],    // LOG SPACE for numerical stability (10 epitope classes)
+    power: [f64; 10],       // Linear space
     rise_bias: f64,         // Can be negative
     fall_bias: f64,         // Can be negative
 }
@@ -158,15 +158,14 @@ struct StructuredParams {
 impl Default for StructuredParams {
     fn default() -> Self {
         // Initialize from VASIL-calibrated values
-        let mut log_ic50 = [0.0f64; 11];
+        let mut log_ic50 = [0.0f64; 10];
         for i in 0..10 {
             log_ic50[i] = (CALIBRATED_IC50[i] as f64).ln();  // LOG SPACE
         }
-        log_ic50[10] = (1.0f64).ln();  // NTD
 
         Self {
             log_ic50,
-            power: [1.0f64; 11],  // Uniform baseline
+            power: [1.0f64; 10],  // Uniform baseline
             rise_bias: 0.0,
             fall_bias: 0.0,
         }
@@ -174,10 +173,10 @@ impl Default for StructuredParams {
 }
 
 impl StructuredParams {
-    fn to_linear(&self) -> ([f32; 11], [f32; 11], f32, f32) {
-        let mut ic50 = [0.0f32; 11];
-        let mut power = [0.0f32; 11];
-        for i in 0..11 {
+    fn to_linear(&self) -> ([f32; 10], [f32; 10], f32, f32) {
+        let mut ic50 = [0.0f32; 10];
+        let mut power = [0.0f32; 10];
+        for i in 0..10 {
             ic50[i] = self.log_ic50[i].exp() as f32;  // Convert back from log space
             power[i] = self.power[i] as f32;
         }
@@ -186,7 +185,7 @@ impl StructuredParams {
 
     fn apply_structured_noise(&self, noise_log_ic50: &[f64], noise_power: &[f64], noise_bias: &[f64]) -> Self {
         let mut new_params = self.clone();
-        for i in 0..11 {
+        for i in 0..10 {
             new_params.log_ic50[i] += noise_log_ic50[i];  // In log space
             new_params.power[i] += noise_power[i];
 
@@ -453,6 +452,70 @@ fn main() -> Result<()> {
     eprintln!("     Correct: {}", baseline_result.total_correct);
 
     // ═══════════════════════════════════════════════════════════════════════════
+    // BIAS SWEEP: Find optimal rise/fall thresholds
+    // ═══════════════════════════════════════════════════════════════════════════
+    eprintln!("\n[BIAS SWEEP] Grid search for optimal thresholds...");
+    eprintln!("════════════════════════════════════════════════════════════════════════");
+
+    let mut best_acc = baseline_acc;
+    let mut best_rise = 0.0f32;
+    let mut best_fall = 0.0f32;
+    let mut best_result = baseline_result.clone();
+
+    let sweep_start = std::time::Instant::now();
+    let bias_values = [-0.3f32, -0.2, -0.1, 0.0, 0.1, 0.2, 0.3];
+    let total_combos = bias_values.len() * bias_values.len();
+    let mut combo_count = 0;
+
+    for &rise_bias in &bias_values {
+        for &fall_bias in &bias_values {
+            combo_count += 1;
+
+            let result = vasil_metric.compute_with_gpu_kernel(
+                &all_data.countries,
+                eval_start,
+                eval_end,
+                &context,
+                &stream,
+                None,  // Default power[10]
+                Some(rise_bias),
+                Some(fall_bias),
+            )?;
+
+            let acc = result.mean_accuracy as f64;
+            if acc > best_acc {
+                best_acc = acc;
+                best_rise = rise_bias;
+                best_fall = fall_bias;
+                best_result = result.clone();
+                eprintln!("[BIAS SWEEP] NEW BEST: {:.2}% (rise={:.2}, fall={:.2}) [{}/{}]",
+                          acc * 100.0, rise_bias, fall_bias, combo_count, total_combos);
+            }
+
+            if combo_count % 7 == 0 {
+                eprintln!("[BIAS SWEEP] Progress: {}/{} combos ({:.1}s elapsed)",
+                          combo_count, total_combos, sweep_start.elapsed().as_secs_f64());
+            }
+        }
+    }
+
+    let sweep_time = sweep_start.elapsed();
+    eprintln!("\n════════════════════════════════════════════════════════════════════════");
+    eprintln!("  BIAS SWEEP COMPLETE");
+    eprintln!("════════════════════════════════════════════════════════════════════════");
+    eprintln!("  Baseline (rise=0.0, fall=0.0): {:.2}%", baseline_acc * 100.0);
+    eprintln!("  Best (rise={:.2}, fall={:.2}): {:.2}%", best_rise, best_fall, best_acc * 100.0);
+    eprintln!("  Improvement: +{:.2} points", (best_acc - baseline_acc) * 100.0);
+    eprintln!("  Sweep time: {:.1}s ({} combos)", sweep_time.as_secs_f64(), total_combos);
+    eprintln!("════════════════════════════════════════════════════════════════════════");
+
+    eprintln!("\nPer-Country Accuracy with Optimal Biases:");
+    for (country, &acc) in &best_result.per_country_accuracy {
+        eprintln!("  {}: {:.2}%", country, acc * 100.0);
+    }
+    eprintln!();
+
+    // ═══════════════════════════════════════════════════════════════════════════
     // STEP 5: PRISM-ES Training
     // ═══════════════════════════════════════════════════════════════════════════
     eprintln!("\n[5/5] PRISM-ES Training (Numerically Stable, Biology-Aware)...");
@@ -477,8 +540,8 @@ fn main() -> Result<()> {
         // Generate population
         let population = es_optimizer.generate_population();
 
-        // Convert to batched format (ic50[11], power[11], rise_bias, fall_bias)
-        let param_sets: Vec<([f32; 11], [f32; 11], f32, f32)> = population.iter()
+        // Convert to batched format (ic50[10], power[10], rise_bias, fall_bias)
+        let param_sets: Vec<([f32; 10], [f32; 10], f32, f32)> = population.iter()
             .map(|(params, _noise)| params.to_linear())
             .collect();
 
